@@ -1,0 +1,43 @@
+{
+  "updatedAt": "2026-05-06T08:40:43.858Z",
+  "createdAt": "2026-05-05T08:54:57.610Z",
+  "id": "JaT71wKRyoO3UFli",
+  "name": "My workflow",
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -400,
+        -112
+      ],
+      "id": "4cf3c9be-51fb-44c7-872b-4a7ed79f48fa",
+      "name": "手动触发"
+    }
+  ],
+  "connections": {},
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": {},
+  "versionId": "63e9905a-5a72-410b-8675-b33e882aef9f",
+  "activeVersionId": null,
+  "triggerCount": 0,
+  "shared": [
+    {
+      "updatedAt": "2026-05-05T08:54:57.612Z",
+      "createdAt": "2026-05-05T08:54:57.612Z",
+      "role": "workflow:owner",
+      "workflowId": "JaT71wKRyoO3UFli",
+      "projectId": "6vjKYrrR74IwDwX2"
+    }
+  ],
+  "activeVersion": null,
+  "tags": []
+}
