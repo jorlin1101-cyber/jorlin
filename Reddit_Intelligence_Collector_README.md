@@ -1,16 +1,9 @@
-# Engine 1 - Reddit 情报采集器工作流说明
-
-这份 README 对应你的 n8n 工作流：
+这份 README 对应 n8n 工作流：
 
 ```text
 http://localhost:5678/workflow/aOUAKkEsQnXGAs8U
 ```
 
-工作流名称：
-
-```text
-Reddit 情报采集器
-```
 
 工作流 ID：
 
@@ -18,7 +11,7 @@ Reddit 情报采集器
 aOUAKkEsQnXGAs8U
 ```
 
-## 1. 这个工作流是做什么的
+## 1. 工作流描述
 
 这个工作流是你的 Engine 1，负责从 Reddit 发现入境游相关内容，并把有价值的帖子写入 Notion。
 
@@ -1857,10 +1850,10 @@ Filter 筛选相关内容1 是否走 true 分支
 ### 11.1 Limit 当前是 10
 
 ```text
-Limit -> Max Items = 10
+Limit -> Max Items = 6
 ```
 
-这表示每个 RSS 源最多处理 10 条帖子。
+这表示每个 RSS 源最多处理 6条帖子。
 
 测试时可以改成：
 
@@ -2018,28 +2011,7 @@ source_url
 13. 存入notion内容库 是否成功
 ```
 
-## 14. 工作流安全边界
-
-这个工作流里 AI 只做判断和格式化。
-
-AI 不直接写 Notion。
-
-真正写 Notion 的只有两个普通 Notion 节点：
-
-```text
-存处理记录
-存入notion内容库
-```
-
-这样设计比较安全：
-
-```text
-AI 不能越权乱改数据库
-写入字段都能在 n8n 节点里清楚看到
-哪里出错更容易定位
-```
-
-## 15. 和 Engine 2 的关系
+## 14. 和 Engine 2 的关系（后续会出）
 
 Engine 1 结束后，如果 AI 判断相关，会写入：
 
@@ -2061,7 +2033,7 @@ Engine 3：生成内容草稿
 
 如果 Engine 1 误判太多，Engine 2 就会浪费时间研究低价值内容。
 
-## 16. 最小可用检查清单
+## 15. 最小可用检查清单
 
 每次运行前快速检查：
 
