@@ -29,7 +29,7 @@
     },
     {
       "parameters": {
-        "jsCode": "return [\n  {\n    json: {\n      feed_url: \"http://127.0.0.1:8787/reddit/travelchina.rss?sort=new\",\n      source_name: \"r/travelchina new\"\n    }\n  }\n];"
+        "jsCode": "return [\n  {\n    json: {\n      feed_url: \"http://YOUR_LOCAL_REDDIT_PROXY:8787/reddit/travelchina.rss?sort=new\",\n      source_name: \"r/travelchina new\"\n    }\n  }\n];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -83,7 +83,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const seen = new Set();\nreturn items\n  .map(item => {\n  const j = item.json;\n\n  const sourceUrl = j.link || j.guid || \"\";\n\n  const cleanUrl = sourceUrl\n    .split(\"?\")[0]\n    .replace(/\\/$/, \"\");\n\n  const redditIdMatch = cleanUrl.match(/comments\\/([^/]+)/);\n  const redditId = redditIdMatch ? redditIdMatch[1] : \"\";\n\n  // 这里改成你的本地中转服务接口地址\n  const localProxyUrl = `http://127.0.0.1:8787/reddit-comments?url=${encodeURIComponent(cleanUrl)}`;\n\n  return {\n    json: {\n      source: \"Reddit\",\n      source_name: j.source_name || \"\",\n      reddit_id: redditId,\n      dup_key: redditId || cleanUrl,\n      original_title: j.title || \"\",\n      source_url: cleanUrl,\n      local_proxy_url: localProxyUrl,\n      published_at: j.isoDate || j.pubDate || \"\",\n      author: j.creator || j.author || \"\",\n      rss_content: j.content || \"\",\n      rss_snippet: j.contentSnippet || \"\"\n    }\n  };\n})\n .filter(item => {\n   const key = item.json.dup_key;\n\n    if (!key) return false;\n\n    if (seen.has(key)) {\n      return false;\n    }\n\n    seen.add(key);\n    return true;\n});"
+        "jsCode": "const seen = new Set();\nreturn items\n  .map(item => {\n  const j = item.json;\n\n  const sourceUrl = j.link || j.guid || \"\";\n\n  const cleanUrl = sourceUrl\n    .split(\"?\")[0]\n    .replace(/\\/$/, \"\");\n\n  const redditIdMatch = cleanUrl.match(/comments\\/([^/]+)/);\n  const redditId = redditIdMatch ? redditIdMatch[1] : \"\";\n\n  // 这里改成你的本地中转服务接口地址\n  const localProxyUrl = `http://YOUR_LOCAL_REDDIT_PROXY:8787/reddit-comments?url=${encodeURIComponent(cleanUrl)}`;\n\n  return {\n    json: {\n      source: \"Reddit\",\n      source_name: j.source_name || \"\",\n      reddit_id: redditId,\n      dup_key: redditId || cleanUrl,\n      original_title: j.title || \"\",\n      source_url: cleanUrl,\n      local_proxy_url: localProxyUrl,\n      published_at: j.isoDate || j.pubDate || \"\",\n      author: j.creator || j.author || \"\",\n      rss_content: j.content || \"\",\n      rss_snippet: j.contentSnippet || \"\"\n    }\n  };\n})\n .filter(item => {\n   const key = item.json.dup_key;\n\n    if (!key) return false;\n\n    if (seen.has(key)) {\n      return false;\n    }\n\n    seen.add(key);\n    return true;\n});"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -96,7 +96,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:8787/reddit-comments",
+        "url": "http://YOUR_LOCAL_REDDIT_PROXY:8787/reddit-comments",
         "sendQuery": true,
         "specifyQuery": "json",
         "jsonQuery": "={\n  \"url\": \"{{ $('Loop Over Items2').item.json.source_url }}\",\n  \"limit\": 100,\n  \"depth\": 6\n}",
@@ -124,10 +124,10 @@
         "operation": "getAll",
         "databaseId": {
           "__rl": true,
-          "value": "35dfed01-79aa-8061-8a0a-e321a6cf38b3",
+          "value": "YOUR_NOTION_CONTENT_DATABASE_ID",
           "mode": "list",
-          "cachedResultName": "入境游内容库",
-          "cachedResultUrl": "https://www.notion.so/35dfed0179aa80618a0ae321a6cf38b3"
+          "cachedResultName": "YOUR_CONTENT_DATABASE_NAME",
+          "cachedResultUrl": "https://www.notion.so/YOUR_NOTION_CONTENT_DATABASE_ID"
         },
         "limit": 1,
         "filterType": "json",
@@ -145,8 +145,8 @@
       "alwaysOutputData": true,
       "credentials": {
         "notionApi": {
-          "id": "zoKalUABLF0XX80k",
-          "name": "Notion account"
+          "id": "YOUR_NOTION_CREDENTIAL_ID",
+          "name": "YOUR_NOTION_CREDENTIAL_NAME"
         }
       }
     },
@@ -237,8 +237,8 @@
       "name": "DeepSeek Chat Model1",
       "credentials": {
         "deepSeekApi": {
-          "id": "uPna6P3mUExbpSIp",
-          "name": "DeepSeek account"
+          "id": "YOUR_DEEPSEEK_CREDENTIAL_ID",
+          "name": "YOUR_DEEPSEEK_CREDENTIAL_NAME"
         }
       }
     },
@@ -295,10 +295,10 @@
         "resource": "databasePage",
         "databaseId": {
           "__rl": true,
-          "value": "35dfed01-79aa-801b-8ebc-ce8d72b4a33f",
+          "value": "YOUR_NOTION_RECORD_DATABASE_ID",
           "mode": "list",
-          "cachedResultName": "Reddit数据记录库",
-          "cachedResultUrl": "https://www.notion.so/35dfed0179aa801b8ebcce8d72b4a33f"
+          "cachedResultName": "YOUR_RECORD_DATABASE_NAME",
+          "cachedResultUrl": "https://www.notion.so/YOUR_NOTION_RECORD_DATABASE_ID"
         },
         "title": "={{ $json.original_title || $json.reddit_id || \"Reddit Post\" }}",
         "simple": false,
@@ -350,8 +350,8 @@
       "name": "存处理记录",
       "credentials": {
         "notionApi": {
-          "id": "zoKalUABLF0XX80k",
-          "name": "Notion account"
+          "id": "YOUR_NOTION_CREDENTIAL_ID",
+          "name": "YOUR_NOTION_CREDENTIAL_NAME"
         }
       }
     },
@@ -360,10 +360,10 @@
         "resource": "databasePage",
         "databaseId": {
           "__rl": true,
-          "value": "35dfed01-79aa-8061-8a0a-e321a6cf38b3",
+          "value": "YOUR_NOTION_CONTENT_DATABASE_ID",
           "mode": "list",
-          "cachedResultName": "入境游内容库",
-          "cachedResultUrl": "https://www.notion.so/35dfed0179aa80618a0ae321a6cf38b3"
+          "cachedResultName": "YOUR_CONTENT_DATABASE_NAME",
+          "cachedResultUrl": "https://www.notion.so/YOUR_NOTION_CONTENT_DATABASE_ID"
         },
         "propertiesUi": {
           "propertyValues": [
@@ -437,8 +437,8 @@
       "name": "存入notion内容库",
       "credentials": {
         "notionApi": {
-          "id": "zoKalUABLF0XX80k",
-          "name": "Notion account"
+          "id": "YOUR_NOTION_CREDENTIAL_ID",
+          "name": "YOUR_NOTION_CREDENTIAL_NAME"
         }
       }
     },
@@ -448,10 +448,10 @@
         "operation": "getAll",
         "databaseId": {
           "__rl": true,
-          "value": "35dfed01-79aa-801b-8ebc-ce8d72b4a33f",
+          "value": "YOUR_NOTION_RECORD_DATABASE_ID",
           "mode": "list",
-          "cachedResultName": "Reddit数据记录库",
-          "cachedResultUrl": "https://www.notion.so/35dfed0179aa801b8ebcce8d72b4a33f"
+          "cachedResultName": "YOUR_RECORD_DATABASE_NAME",
+          "cachedResultUrl": "https://www.notion.so/YOUR_NOTION_RECORD_DATABASE_ID"
         },
         "limit": 1,
         "filterType": "json",
@@ -469,8 +469,8 @@
       "alwaysOutputData": true,
       "credentials": {
         "notionApi": {
-          "id": "zoKalUABLF0XX80k",
-          "name": "Notion account"
+          "id": "YOUR_NOTION_CREDENTIAL_ID",
+          "name": "YOUR_NOTION_CREDENTIAL_NAME"
         }
       }
     },

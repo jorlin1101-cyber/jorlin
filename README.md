@@ -1,24 +1,41 @@
-# Engine 1 - Reddit 情报采集器 README
+# 安全脱敏声明
 
-这份 README 对应 n8n 工作流：
+本仓库中的 workflow 和 README 已按公开分享模板处理：
 
-```
+- Notion API Key、DeepSeek API Key、Gemini API Key 等真实密钥没有保留在仓库中；如果你曾误提交真实密钥，请立即在对应平台撤销并重新生成。
+- Notion Database ID 已替换为 `YOUR_NOTION_CONTENT_DATABASE_ID` / `YOUR_NOTION_RECORD_DATABASE_ID` 等占位符。
+- n8n Credential ID 已替换为 `YOUR_NOTION_CREDENTIAL_ID` / `YOUR_DEEPSEEK_CREDENTIAL_ID` 等占位符。
+- 本地 Reddit 代理地址已替换为 `http://YOUR_LOCAL_REDDIT_PROXY:8787`，仅表示示例配置；实际使用时请改成你自己的本地服务地址。
+- 本仓库不应包含个人邮箱、个人账号、客户信息、真实 Notion 私密字段内容或任何可识别个人/客户的数据。
+- 导入 n8n 后，请在本地重新选择自己的 Notion、DeepSeek、Gemini 等凭证，并替换数据库 ID、字段名和代理地址。
+
+# Engine 1 - Reddit 情报采集器工作流说明
+
+这份 README 对应你的 n8n 工作流：
+
+```text
 http://localhost:5678/workflow/aOUAKkEsQnXGAs8U
+```
+
+工作流名称：
+
+```text
+Reddit 情报采集器
 ```
 
 工作流 ID：
 
-```
+```text
 aOUAKkEsQnXGAs8U
 ```
 
-## 1. 工作流描述
+## 1. 这个工作流是做什么的
 
 这个工作流是你的 Engine 1，负责从 Reddit 发现入境游相关内容，并把有价值的帖子写入 Notion。
 
 它的核心目标是：
 
-```
+```text
 抓 Reddit 帖子列表
 -> 对每条帖子查重
 -> 抓原帖和评论区
@@ -28,9 +45,15 @@ aOUAKkEsQnXGAs8U
 -> 如果相关，就写入入境游内容库
 ```
 
+一句话理解：
+
+```text
+Engine 1 负责“发现痛点”和“初步筛选”。
+Engine 2 再负责“搜索解决方案”和“研究总结”。
+```
+
 ## 2. 当前工作流概览
 
-```markdown
 | 项目 | 当前值 |
 | --- | --- |
 | Workflow ID | `aOUAKkEsQnXGAs8U` |
@@ -38,12 +61,11 @@ aOUAKkEsQnXGAs8U
 | 当前节点数 | 19 个 |
 | 触发方式 | Schedule Trigger，每 6 小时一次 |
 | 当前工作流状态 | 未启用自动运行时，可手动 Execute 测试 |
-| Reddit RSS 来源 | `http://127.0.0.1:8787/reddit/travelchina.rss?sort=new` |
-| Reddit 评论抓取 | 本地代理 `http://127.0.0.1:8787/reddit-comments` |
+| Reddit RSS 来源 | `http://YOUR_LOCAL_REDDIT_PROXY:8787/reddit/travelchina.rss?sort=new` |
+| Reddit 评论抓取 | 本地代理 `http://YOUR_LOCAL_REDDIT_PROXY:8787/reddit-comments` |
 | AI 模型 | DeepSeek |
 | 记录库 | `Reddit数据记录库` |
 | 内容库 | `入境游内容库` |
-```
 
 ## 3. 运行前必须确认
 
@@ -51,7 +73,7 @@ aOUAKkEsQnXGAs8U
 
 浏览器能打开：
 
-```
+```text
 http://localhost:5678
 ```
 
@@ -59,15 +81,15 @@ http://localhost:5678
 
 这个工作流不直接请求 Reddit，而是请求你的本地代理：
 
-```
-http://127.0.0.1:8787
+```text
+http://YOUR_LOCAL_REDDIT_PROXY:8787
 ```
 
 当前会用到两个接口：
 
-```
-http://127.0.0.1:8787/reddit/travelchina.rss?sort=new
-http://127.0.0.1:8787/reddit-comments
+```text
+http://YOUR_LOCAL_REDDIT_PROXY:8787/reddit/travelchina.rss?sort=new
+http://YOUR_LOCAL_REDDIT_PROXY:8787/reddit-comments
 ```
 
 如果 `RSS Read` 报 403、502、连接失败，优先检查这个本地代理是否还在运行。
@@ -76,13 +98,13 @@ http://127.0.0.1:8787/reddit-comments
 
 当前使用的 Notion 凭证：
 
-```
+```text
 Notion account
 ```
 
 会写入两个 Notion 数据库：
 
-```
+```text
 Reddit数据记录库
 入境游内容库
 ```
@@ -91,7 +113,7 @@ Reddit数据记录库
 
 当前 AI 节点使用：
 
-```
+```text
 DeepSeek account
 ```
 
@@ -99,7 +121,7 @@ DeepSeek account
 
 ## 4. 整体流程图
 
-```
+```text
 Schedule Trigger
 -> Feed URL List
 -> Loop Over Items
@@ -121,33 +143,56 @@ Schedule Trigger
 -> 回到 Loop Over Items2
 ```
 
+AI 节点下方还有一个模型节点：
+
+```text
+AI 判断 + 格式化1
+└── DeepSeek Chat Model1
+```
+
+这个模型节点不是主线节点，而是给 AI 节点提供大模型能力的子节点。
+
 ## 5. 这个工作流里有两个循环
 
 ### 第一个循环：Loop Over Items
 
-循环作用：
+作用：
 
-```
+```text
 逐个处理 RSS 源。
 ```
 
 现在只有一个 RSS 源：
 
-```
+```text
 r/travelchina new
 ```
+
+所以这个循环目前看起来不明显。
+
+如果以后你增加多个 RSS 源，比如：
+
+```text
+r/travelchina new
+r/chinalife search alipay
+r/travel search china
+```
+
+第一个循环就会逐个跑这些源。
 
 ### 第二个循环：Loop Over Items2
 
 作用：
 
-```
+```text
 逐个处理 RSS 源里抓到的 Reddit 帖子。
 ```
 
+这是更关键的循环。
+
 每一条 Reddit 帖子都会经过：
 
-```
+```text
 查记录库
 查内容库
 抓评论
@@ -161,21 +206,21 @@ AI 判断
 
 这个工作流做了双重查重：
 
-```
+```text
 第一层：查 Reddit数据记录库
 第二层：查 入境游内容库
 ```
 
 为什么要双重查重：
 
-```
+```text
 记录库：防止同一个 Reddit 帖子被重复处理
 内容库：防止已经入库的内容再次写入内容库
 ```
 
 查重用到的字段：
 
-```
+```text
 dup_key
 reddit_id
 source_url
@@ -183,7 +228,7 @@ source_url
 
 其中：
 
-```
+```text
 reddit_id 是 Reddit 帖子 ID
 source_url 是 Reddit 原帖链接
 dup_key 优先使用 reddit_id，如果没有 reddit_id 就使用 source_url
@@ -191,53 +236,90 @@ dup_key 优先使用 reddit_id，如果没有 reddit_id 就使用 source_url
 
 ## 7. 每个节点详细说明
 
-#### 节点 1：Schedule Trigger
+### 节点 1：Schedule Trigger
 
 节点类型：
 
-```
+```text
 n8n-nodes-base.scheduleTrigger
 ```
 
 节点作用：
 
-```
-Schedule Trigger可以设置按照每月、每周、每天、每时或者自定义来进行时间触发，本项目设置为每隔6小时进行工作流触发
+```text
+定时启动整个工作流。
 ```
 
 当前配置：
 
+```json
+{
+  "rule": {
+    "interval": [
+      {
+        "field": "hours",
+        "hoursInterval": 6
+      }
+    ]
+  }
+}
+```
 
+小白理解：
 
-#### 节点 2：Feed URL List
+```text
+如果工作流启用，它会每 6 小时自动跑一次。
+```
+
+测试阶段建议：
+
+```text
+先不要急着启用自动运行。
+先手动 Execute Workflow，确认每一步都稳定。
+```
+
+### 节点 2：Feed URL List
 
 节点类型：
 
-```
+```text
 Code
 ```
 
 节点作用：
 
-```
+```text
 生成要抓取的 Reddit RSS 源列表。
 ```
 
 当前只配置了一个 RSS 源：
 
-```
-http://127.0.0.1:8787/reddit/travelchina.rss?sort=new
+```text
+http://YOUR_LOCAL_REDDIT_PROXY:8787/reddit/travelchina.rss?sort=new
 ```
 
-代码为
+当前代码：
 
-```jsx
+```javascript
+return [
+  {
+    json: {
+      feed_url: "http://YOUR_LOCAL_REDDIT_PROXY:8787/reddit/travelchina.rss?sort=new",
+      source_name: "r/travelchina new"
+    }
+  }
+];
+```
+
+带注释解释版：
+
+```javascript
 // 返回一个数组，数组里的每一项都会变成 n8n 后续节点的一条 item
 return [
   {
     json: {
       // RSS Read 节点后面会读取这个字段
-      feed_url: "http://127.0.0.1:8787/reddit/travelchina.rss?sort=new",
+      feed_url: "http://YOUR_LOCAL_REDDIT_PROXY:8787/reddit/travelchina.rss?sort=new",
 
       // 给这个来源起一个人能看懂的名字
       source_name: "r/travelchina new"
@@ -248,105 +330,101 @@ return [
 
 如果以后要加更多源，可以改成：
 
-```jsx
+```javascript
 return [
   {
     json: {
-      feed_url: "http://127.0.0.1:8787/reddit/travelchina.rss?sort=new",
+      feed_url: "http://YOUR_LOCAL_REDDIT_PROXY:8787/reddit/travelchina.rss?sort=new",
       source_name: "r/travelchina new"
     }
   },
   {
     json: {
-      feed_url: "http://127.0.0.1:8787/reddit/travelchina/search.rss?q=alipay&sort=new",
+      feed_url: "http://YOUR_LOCAL_REDDIT_PROXY:8787/reddit/travelchina/search.rss?q=alipay&sort=new",
       source_name: "r/travelchina alipay"
     }
   }
 ];
 ```
 
-feed_url：代表你想要访问的链接，本链接由于访问reddit的1个sub，所以对应1个url，
-
-127.0.0.1:8787：由于reddit不能直接通过n8n访问RSS，所以本项目通过建立中转代理服务来解决，此码代表我本机建立的中转代理服务地址；
-
-q=China%20travel&restrict_sr=1&sort=new：%20表示空格，更好的写法为encodeURIComponent("Chengdu travel tips")，它会自动变成Chengdu%20travel%20tips
-
-- 更好维护版本如下：
-    
-    ```jsx
-    const feeds = [
-      {
-        subreddit: "travel",
-        keyword: "China travel",
-        source_name: "r/travel China travel"
-      },
-      {
-        subreddit: "solotravel",
-        keyword: "China",
-        source_name: "r/solotravel China"
-      }
-    ];
-    
-    return feeds.map(feed => {
-      const keyword = encodeURIComponent(feed.keyword);
-    
-      return {
-        json: {
-          feed_url: `http://127.0.0.1:8787/reddit/${feed.subreddit}/search.rss?q=${keyword}&restrict_sr=1&sort=new`,
-          source_name: feed.source_name
-        }
-      };
-    });
-    ```
-    
-    其中const feeds = [ 指的是建立一个叫feeds的列表
-    
-    return feeds.map(feed => {  意思是： 把 `feeds` 这个列表里的每一个链接，都转换成 n8n 能识别的格式；map指的是逐个处理
-    
-    第二个return是返回给n8n的数据
-    
-
-#### 节点 3：Loop Over Items
+### 节点 3：Loop Over Items
 
 节点类型：
 
-```
-Loop Over Items 
+```text
+Loop Over Items / Split In Batches
 ```
 
 节点作用：
 
-```
+```text
 逐个处理 Feed URL List 里的 RSS 源。
+```
+
+当前配置：
+
+```json
+{
+  "options": {}
+}
+```
+
+小白理解：
+
+```text
+它像一个队列。
+Feed URL List 输出几个 RSS 源，它就一个一个放给 RSS Read 处理。
+```
+
+连接说明：
+
+```text
+Loop 分支 -> RSS Read
+Done 分支 -> 当前为空
 ```
 
 注意：
 
-```
+```text
 Loop Over Items2 处理完一个 RSS 源里的所有帖子后，会回到这个节点，继续处理下一个 RSS 源。
 ```
 
-#### 节点 4：RSS Read
+### 节点 4：RSS Read
 
 节点类型：
 
-```
+```text
 RSS Feed Read
 ```
 
 节点作用：
 
-```
+```text
 读取上一个节点传来的 RSS 地址，抓 Reddit 帖子列表。
 ```
 
 当前配置：
 
-![image.png](image%201.png)
+| 配置项 | 当前值 |
+| --- | --- |
+| URL | `={{ $json.feed_url }}` |
+| Options | 空 |
+
+小白理解：
+
+```text
+它会读取 Feed URL List 里生成的 feed_url。
+```
+
+比如当前实际读取：
+
+```text
+http://YOUR_LOCAL_REDDIT_PROXY:8787/reddit/travelchina.rss?sort=new
+```
 
 常见输出字段：
 
-```
+```text
 title
 link
 guid
@@ -358,52 +436,127 @@ content
 contentSnippet
 ```
 
-#### 节点 5：Limit
+常见报错：
+
+```text
+403：上游 Reddit 或本地代理被拦
+ECONNREFUSED：本地代理 8787 没启动
+Invalid RSS：返回的不是 RSS，而是错误页面
+```
+
+### 节点 5：Limit
 
 节点类型：
 
-```
+```text
 Limit
 ```
 
 节点作用：
 
-```
+```text
 限制每个 RSS 源最多处理多少条帖子。
 ```
 
 当前配置：
 
-![image.png](image%202.png)
+```json
+{
+  "maxItems": 10
+}
+```
 
-keep可以用于设置保存最前面几条还是最后面几条
+小白理解：
 
-#### 节点 6：Build Local Proxy URL
+```text
+RSS 可能一次返回很多帖子。
+这个节点只保留前 10 条，避免一次跑太多。
+```
+
+测试建议：
+
+```text
+如果你只想测试一条，可以临时改成 1。
+稳定后再改回 10。
+```
+
+### 节点 6：Build Local Proxy URL
 
 节点类型：
 
-```
+```text
 Code
 ```
 
 节点作用：
 
-```
+```text
 把 RSS 里的 Reddit 帖子信息整理成统一字段，并生成本地评论代理 URL。
 ```
 
 这个节点还做了一次内存级去重：
 
-```
+```text
 同一批 RSS 结果里，如果出现相同 reddit_id 或 source_url，只保留第一条。
 ```
 
 当前代码：
 
-```jsx
-const seen = new Set();//set可以理解为一个内容不重复的库
+```javascript
+const seen = new Set();
+return items
+  .map(item => {
+  const j = item.json;
 
-return items          //把每一条items处理后，返回给下个节点
+  const sourceUrl = j.link || j.guid || "";
+
+  const cleanUrl = sourceUrl
+    .split("?")[0]
+    .replace(/\/$/, "");
+
+  const redditIdMatch = cleanUrl.match(/comments\/([^/]+)/);
+  const redditId = redditIdMatch ? redditIdMatch[1] : "";
+
+  // 这里改成你的本地中转服务接口地址
+  const localProxyUrl = `http://YOUR_LOCAL_REDDIT_PROXY:8787/reddit-comments?url=${encodeURIComponent(cleanUrl)}`;
+
+  return {
+    json: {
+      source: "Reddit",
+      source_name: j.source_name || "",
+      reddit_id: redditId,
+      dup_key: redditId || cleanUrl,
+      original_title: j.title || "",
+      source_url: cleanUrl,
+      local_proxy_url: localProxyUrl,
+      published_at: j.isoDate || j.pubDate || "",
+      author: j.creator || j.author || "",
+      rss_content: j.content || "",
+      rss_snippet: j.contentSnippet || ""
+    }
+  };
+})
+ .filter(item => {
+   const key = item.json.dup_key;
+
+    if (!key) return false;
+
+    if (seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+});
+```
+
+带注释解释版：
+
+```javascript
+// Set 用来记录这一批里已经见过的帖子，防止同一批重复
+const seen = new Set();
+
+return items
   .map(item => {
     // j 是 RSS Read 输出的单条帖子
     const j = item.json;
@@ -412,9 +565,11 @@ return items          //把每一条items处理后，返回给下个节点
     const sourceUrl = j.link || j.guid || "";
 
     // 清理 URL：
+    // 1. 去掉 ? 后面的追踪参数
+    // 2. 去掉最后多余的 /
     const cleanUrl = sourceUrl
-      .split("?")[0]       //将？后的内容分解开，取第0段
-      .replace(/\/$/, "");  //删除最后的/
+      .split("?")[0]
+      .replace(/\/$/, "");
 
     // 从 Reddit URL 里提取帖子 ID
     // 例如 /comments/1abcxyz/title/ 会提取到 1abcxyz
@@ -423,8 +578,8 @@ return items          //把每一条items处理后，返回给下个节点
 
     // 构造本地评论代理 URL
     // encodeURIComponent 是为了把 Reddit URL 安全地放进 query 参数里
-    const localProxyUrl = `http://127.0.0.1:8787/reddit-comments?url=${encodeURIComponent(cleanUrl)}`;
-    //``用于把变量写入字符串
+    const localProxyUrl = `http://YOUR_LOCAL_REDDIT_PROXY:8787/reddit-comments?url=${encodeURIComponent(cleanUrl)}`;
+
     // 输出后续节点统一使用的字段
     return {
       json: {
@@ -462,7 +617,6 @@ return items          //把每一条items处理后，返回给下个节点
 
 主要输出字段：
 
-```markdown
 | 字段 | 含义 |
 | --- | --- |
 | `source` | 固定为 `Reddit` |
@@ -476,39 +630,76 @@ return items          //把每一条items处理后，返回给下个节点
 | `author` | 作者 |
 | `rss_content` | RSS 正文 |
 | `rss_snippet` | RSS 摘要 |
-```
 
-#### 节点 7：Loop Over Items2
+### 节点 7：Loop Over Items2
 
 节点类型：
 
-```
-Loop Over Items
+```text
+Loop Over Items / Split In Batches
 ```
 
 节点作用：
 
-```
+```text
 逐个处理 Reddit 帖子。
 ```
 
-#### 节点 8：Check Record DB
+当前配置：
+
+```json
+{
+  "options": {}
+}
+```
+
+小白理解：
+
+```text
+前面 Limit 最多给它 10 条帖子。
+它一次只拿一条往后处理。
+处理完再回来拿下一条。
+```
+
+连接说明：
+
+```text
+Loop 分支 -> Check Record DB
+Done 分支 -> Loop Over Items
+```
+
+这表示：
+
+```text
+如果还有帖子，就继续处理帖子。
+如果这个 RSS 源里的帖子处理完了，就回到第一个循环，处理下一个 RSS 源。
+```
+
+### 节点 8：Check Record DB
 
 节点类型：
 
-```
+```text
 Notion
 ```
 
 节点作用：
 
-```
-去 Reddit数据记录库 里查这条 Reddit 帖子是否已经处理过。查询dup_key、reddit_id、source_url是否有出现过。
+```text
+去 Reddit数据记录库 里查这条 Reddit 帖子是否已经处理过。
 ```
 
 当前配置：
 
-![image.png](image%203.png)
+| 配置项 | 当前值 |
+| --- | --- |
+| Resource | `databasePage` |
+| Operation | `getAll` |
+| Database | `Reddit Record DB` |
+| Database ID | `YOUR_NOTION_RECORD_DATABASE_ID` |
+| Limit | `1` |
+| Filter Type | `json` |
+| Credential | `Notion account` |
 
 当前查重条件：
 
@@ -537,50 +728,75 @@ Notion
 }
 ```
 
-#### 节点 9：IF Record Missing
+小白理解：
+
+```text
+它会问 Notion：
+这个 dup_key、reddit_id 或 source_url 以前有没有记录过？
+只要任意一个匹配，就认为处理过。
+```
+
+### 节点 9：IF Record Missing
 
 节点类型：
 
-```
+```text
 IF
 ```
 
 节点作用：
 
-```
-判断Reddit数据记录库有没有查到记录。
+```text
+判断 Check Record DB 有没有查到记录。
 ```
 
-节点配置：
+当前条件：
 
-![image.png](image%204.png)
+```text
+{{ $json.id || "" }} equals ""
+```
+
+小白理解：
+
+```text
+如果 Notion 查到了记录，输出里通常会有 id。
+如果没有查到，id 就是空。
+```
 
 连接逻辑：
 
-```
+```text
 true 分支：没有处理记录 -> 继续查内容库
 false 分支：已经处理过 -> 回到 Loop Over Items2，处理下一条
 ```
 
 这个节点是防重复处理的第一道门。
 
-#### 节点 10：Check Content DB
+### 节点 10：Check Content DB
 
 节点类型：
 
-```
+```text
 Notion
 ```
 
 节点作用：
 
-```
+```text
 去 入境游内容库 里查这条 Reddit 帖子是否已经入库。
 ```
 
 当前配置：
 
-![image.png](image%205.png)
+| 配置项 | 当前值 |
+| --- | --- |
+| Resource | `databasePage` |
+| Operation | `getAll` |
+| Database | `Inbound Travel Content DB` |
+| Database ID | `YOUR_NOTION_CONTENT_DATABASE_ID` |
+| Limit | `1` |
+| Filter Type | `json` |
+| Credential | `Notion account` |
 
 当前查重条件：
 
@@ -603,150 +819,130 @@ Notion
 }
 ```
 
+注意：
+
+```text
+这里的 source_url 字段名后面有一个空格：source_url 
+这是你 Notion 内容库里的真实字段名。
+不要随便删掉这个空格，除非同步修改 Notion 字段和 n8n 配置。
 ```
+
+小白理解：
+
+```text
 即使记录库里没有，也要再检查内容库。
 这样可以避免某些历史内容已经写入内容库，但记录库没记录，导致重复写入。
 ```
 
-#### 节点 11：IF Content Missing
+### 节点 11：IF Content Missing
 
 节点类型：
 
-```
+```text
 IF
 ```
 
 节点作用：
 
-```
+```text
 判断 Check Content DB 有没有查到内容库记录。
 ```
 
-当前配置：
+当前条件：
 
-![image.png](image%206.png)
+```text
+{{ $json.id || "" }} equals ""
+```
 
 连接逻辑：
 
-```
+```text
 true 分支：内容库没有这条 -> 抓 Reddit 评论区
 false 分支：内容库已有这条 -> 回到 Loop Over Items2，处理下一条
 ```
 
-#### 节点 12：Fetch Reddit Via Local Proxy
+小白理解：
+
+```text
+这是防重复写入内容库的第二道门。
+```
+
+### 节点 12：Fetch Reddit Via Local Proxy
 
 节点类型：
 
-```
+```text
 HTTP Request
 ```
 
 节点作用：
 
-```
+```text
 请求本地 Reddit 代理，获取原帖和评论区 JSON。
 ```
 
 当前配置：
 
-![image.png](image%207.png)
+| 配置项 | 当前值 |
+| --- | --- |
+| Method | 默认 GET |
+| URL | `http://YOUR_LOCAL_REDDIT_PROXY:8787/reddit-comments` |
+| Send Query | `true` |
+| Specify Query | `json` |
+| Response Format | `json` |
 
 Query 参数：
 
-```jsx
+```json
 {
   "url": "{{ $('Loop Over Items2').item.json.source_url }}",
-  "limit": 100,  //最多抓 100 条评论
-  "depth": 6  //最多抓 6 层评论深度
+  "limit": 100,
+  "depth": 6
 }
+```
+
+小白理解：
+
+```text
+n8n 不直接请求 Reddit。
+n8n 请求本地代理。
+本地代理再去抓 Reddit 评论区。
 ```
 
 参数含义：
 
-```markdown
 | 参数 | 含义 |
 | --- | --- |
 | `url` | Reddit 原帖链接 |
 | `limit` | 最多抓 100 条评论 |
 | `depth` | 最多抓 6 层评论深度 |
+
+常见报错：
+
+```text
+ECONNREFUSED：本地代理没启动
+502：代理抓 Reddit 失败
+403：Reddit 拦截了代理请求
+JSON parse error：代理返回的不是 JSON
 ```
 
-- 节点参数解释
-    
-    **Method参数**
-    
-    | Method | 意思 | 常见用途 |
-    | --- | --- | --- |
-    | GET | 获取数据 | 搜索、读取、查询 |
-    | POST | 提交数据 | 创建内容、发送内容 |
-    | PUT | 整体更新数据 | 更新一整条记录 |
-    | PATCH | 部分更新数据 | 修改某几个字段 |
-    | DELETE | 删除数据 | 删除记录 |
-    
-    **Query Parameters  查询参数：**
-    
-    如地址：
-    
-    ```jsx
-    http://127.0.0.1:8787/reddit/travel/search.rss?q=China%20travel&restrict_sr=1&sort=new
-    ```
-    
-    其中Query Parameters为：
-    
-    | 参数名 | 参数值 | 意思 |
-    | --- | --- | --- |
-    | q | China travel | 搜索关键词是 China travel |
-    | restrict_sr | 1 | 只在当前 subreddit 内搜索 |
-    | sort | new | 按最新排序 |
-    
-    **Headers 请求头：**
-    
-    你告诉服务器的一些“身份信息、格式信息、请求说明“
-    
-    | Header 名称 | 作用 |
-    | --- | --- |
-    | User-Agent | 告诉服务器你是谁，比如浏览器、爬虫、n8n |
-    | Content-Type | 告诉服务器你提交的数据是什么格式 |
-    | Authorization | 用来放 API Key、Token 等身份验证信息 |
-    | Accept | 告诉服务器你希望接收什么格式的数据 |
-    
-    **Body 请求体：**
-    
-    GET 请求一般不需要 Body，POST、PUT、PATCH 请求经常需要 Body。
-    
-    适合：提交给 AI、创建数据库记录、调用 API。
-    
-    ```jsx
-    {
-      "title": "Chengdu travel pain point",
-      "status": "To Research"
-    }
-    ```
-    
-    URL = 我要去哪里
-    Method = 我要做什么
-    Query Parameters = 我要查什么条件
-    Headers = 我是谁、我带什么格式、我有没有权限
-    Body = 我要正式提交的内容
-    
-
-#### 节点 13：Format Reddit Post And Comments
+### 节点 13：Format Reddit Post And Comments
 
 节点类型：
 
-```
+```text
 Code
 ```
 
 节点作用：
 
-```
+```text
 把代理返回的 Reddit 原帖和评论整理成 AI 可读的输入文本。
 ```
 
 它会做这些事情：
 
-```
+```text
 清理 HTML 标签
 清理 Reddit 的 [deleted] / [removed]
 提取原帖标题和正文
@@ -756,136 +952,224 @@ Code
 拼成 ai_input 给 DeepSeek
 ```
 
-- 当前代码：
-    
-    ```jsx
-    // 清理 Reddit 文本，避免 HTML 标签、实体字符、删除标记干扰 AI 判断
-    function cleanText(text) {           //清洗文本函数
-      return String(text || "")
-        .replace(/<[^>]*>/g, " ")       // 去掉 HTML 标签
-        .replace(/&nbsp;/g, " ")        // HTML 空格
-        .replace(/&amp;/g, "&")         // &amp; 还原成 &
-        .replace(/&lt;/g, "<")          // &lt; 还原成 <
-        .replace(/&gt;/g, ">")          // &gt; 还原成 >
-        .replace(/&#32;/g, " ")         // HTML 空格编码
-        .replace(/\[deleted\]/gi, "")   // 去掉 deleted 评论
-        .replace(/\[removed\]/gi, "")   // 去掉 removed 评论
-        .replace(/\s+/g, " ")           // 多个空白合并成一个空格
-        .trim();                        // 去掉首尾空格
+当前代码：
+
+```javascript
+function cleanText(text) {
+  return String(text || "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&#32;/g, " ")
+    .replace(/\[deleted\]/gi, "")
+    .replace(/\[removed\]/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+return items.map(item => {
+  const j = item.json;
+  const post = j.post || {};
+
+  const title = cleanText(post.title || "");
+  const postText = cleanText(post.selftext || "");
+  const sourceUrl = j.source_url || "";
+  const redditId = post.id || "";
+  const subreddit = post.subreddit || "";
+  const author = post.author || "";
+  const score = post.score || 0;
+  const numComments = post.num_comments || 0;
+  const createdUtc = post.created_utc || "";
+
+  const rawComments = Array.isArray(j.flat_comments)
+    ? j.flat_comments
+    : Array.isArray(j.comments)
+      ? j.comments
+      : [];
+
+  const usefulComments = rawComments
+    .map(c => ({
+      author: c.author || "",
+      score: c.score || 0,
+      depth: c.depth || 0,
+      body: cleanText(c.body || c.text || "")
+    }))
+    .filter(c => c.body.length > 10)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 20);
+
+  const commentsText = usefulComments
+    .map((c, index) => {
+      return `Comment ${index + 1} | score: ${c.score} | author: ${c.author} | depth: ${c.depth}\n${c.body}`;
+    })
+    .join("\n\n---\n\n");
+
+  const aiInput = `
+Reddit Source:
+r/${subreddit}
+
+Post Title:
+${title}
+
+Post Text:
+${postText || "No post body."}
+
+Top Comments:
+${commentsText || "No useful comments found."}
+
+Post Score:
+${score}
+
+Number of Comments:
+${numComments}
+
+Source URL:
+${sourceUrl}
+  `.trim();
+
+  return {
+    json: {
+      source: "Reddit",
+      source_name: subreddit ? `r/${subreddit}` : "",
+      reddit_id: redditId,
+      dup_key: redditId || sourceUrl,
+      source_url: sourceUrl,
+      original_title: title,
+      original_text: postText,
+      author,
+      post_score: score,
+      comments_count: rawComments.length,
+      useful_comments_count: usefulComments.length,
+      top_comments_text: commentsText.slice(0, 8000),
+      ai_input: aiInput.slice(0, 12000),
+      created_utc: createdUtc
     }
-    
-    return items.map(item => {
-      // j 是本地 Reddit 代理返回的 JSON
-      const j = item.json;
-    
-      // post 是原帖对象
-      const post = j.post || {};
-    
-      // 清洗原帖标题和正文并分别写入变量
-      const title = cleanText(post.title || "");
-      const postText = cleanText(post.selftext || "");
-    
-      // 原帖元信息
-      const sourceUrl = j.source_url || "";
-      const redditId = post.id || "";
-      const subreddit = post.subreddit || "";
-      const author = post.author || "";
-      const score = post.score || 0;
-      const numComments = post.num_comments || 0;  //原贴评论数量
-      const createdUtc = post.created_utc || "";  //原贴发布时间
-    
-      // 代理可能返回 flat_comments，也可能返回 comments
-      // 优先使用 flat_comments，因为它已经被拉平成一维列表，更方便处理
-      // Array.isArray判断某个东西是不是数组
-      const rawComments = Array.isArray(j.flat_comments)
-        ? j.flat_comments
-        : Array.isArray(j.comments)
-          ? j.comments
-          : [];
-    
-      // 整理评论：
-      // 1. 提取 author / score / depth / body
-      // 2. 去掉太短的评论
-      // 3. 按 score 从高到低排序
-      // 4. 只保留前 20 条
-      const usefulComments = rawComments   
-      //用于统一所有评论的字段，以便后面filter、sort使用
-        .map(c => ({
-          author: c.author || "",         //c为任意定义的变量
-          score: c.score || 0,          //用：是创建对象字段
-          depth: c.depth || 0,
-          body: cleanText(c.body || c.text || "")  //提取评论正文
-        }))
-        .filter(c => c.body.length > 10) //删除正文长度小于等于 10 的评论。
-        .sort((a, b) => b.score - a.score)  //这行是按 score 从高到低排序。
-        .slice(0, 20);  //保留排序后的前 20 条评论
-    
-      // 把评论拼成一段文本，给 AI 阅读
-        const commentsText = usefulComments
-        .map((c, index) => {
-          return `Comment ${index + 1} | score: ${c.score} | author: ${c.author} | depth: ${c.depth}\n${c.body}`;
-        })
-        .join("\n\n---\n\n");
-      //生成文本为
-      //Comment 1 | score: 10 | author: userA | depth: 0
-    //  I recommend staying near Wulingyuan.
-    //   ---
-    //  Comment 2 | score: 5 | author: userB | depth: 1
-    //Tianmen Mountain needs a full day.
-    
-      // 这是最终喂给 AI 的完整输入
-      const aiInput = `
-    Reddit Source:
-    r/${subreddit}
-    
-    Post Title:
-    ${title}
-    
-    Post Text:
-    ${postText || "No post body."}
-    
-    Top Comments:
-    ${commentsText || "No useful comments found."}
-    
-    Post Score:
-    ${score}
-    
-    Number of Comments:
-    ${numComments}
-    
-    Source URL:
-    ${sourceUrl}
-      `.trim();
-    
-      // 输出统一字段，供 AI、Notion 节点使用
-      return {
-        json: {
-          source: "Reddit",
-          source_name: subreddit ? `r/${subreddit}` : "",
-          reddit_id: redditId,
-          dup_key: redditId || sourceUrl,
-          source_url: sourceUrl,
-          original_title: title,
-          original_text: postText,
-          author,
-          post_score: score,
-          comments_count: rawComments.length,
-          useful_comments_count: usefulComments.length,
-    
-          // 限制长度，避免后面 Notion 或 AI 输入过长
-          top_comments_text: commentsText.slice(0, 8000),
-          ai_input: aiInput.slice(0, 12000),
-    
-          created_utc: createdUtc
-        }
-      };
-    });
-    ```
-    
+  };
+});
+```
+
+带注释解释版：
+
+```javascript
+// 清理 Reddit 文本，避免 HTML 标签、实体字符、删除标记干扰 AI 判断
+function cleanText(text) {
+  return String(text || "")
+    .replace(/<[^>]*>/g, " ")       // 去掉 HTML 标签
+    .replace(/&nbsp;/g, " ")        // HTML 空格
+    .replace(/&amp;/g, "&")         // &amp; 还原成 &
+    .replace(/&lt;/g, "<")          // &lt; 还原成 <
+    .replace(/&gt;/g, ">")          // &gt; 还原成 >
+    .replace(/&#32;/g, " ")         // HTML 空格编码
+    .replace(/\[deleted\]/gi, "")   // 去掉 deleted 评论
+    .replace(/\[removed\]/gi, "")   // 去掉 removed 评论
+    .replace(/\s+/g, " ")           // 多个空白合并成一个空格
+    .trim();                        // 去掉首尾空格
+}
+
+return items.map(item => {
+  // j 是本地 Reddit 代理返回的 JSON
+  const j = item.json;
+
+  // post 是原帖对象
+  const post = j.post || {};
+
+  // 原帖标题和正文
+  const title = cleanText(post.title || "");
+  const postText = cleanText(post.selftext || "");
+
+  // 原帖元信息
+  const sourceUrl = j.source_url || "";
+  const redditId = post.id || "";
+  const subreddit = post.subreddit || "";
+  const author = post.author || "";
+  const score = post.score || 0;
+  const numComments = post.num_comments || 0;
+  const createdUtc = post.created_utc || "";
+
+  // 代理可能返回 flat_comments，也可能返回 comments
+  // 优先使用 flat_comments，因为它已经被拉平成一维列表，更方便处理
+  const rawComments = Array.isArray(j.flat_comments)
+    ? j.flat_comments
+    : Array.isArray(j.comments)
+      ? j.comments
+      : [];
+
+  // 整理评论：
+  // 1. 提取 author / score / depth / body
+  // 2. 去掉太短的评论
+  // 3. 按 score 从高到低排序
+  // 4. 只保留前 20 条
+  const usefulComments = rawComments
+    .map(c => ({
+      author: c.author || "",
+      score: c.score || 0,
+      depth: c.depth || 0,
+      body: cleanText(c.body || c.text || "")
+    }))
+    .filter(c => c.body.length > 10)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 20);
+
+  // 把评论拼成一段文本，给 AI 阅读
+  const commentsText = usefulComments
+    .map((c, index) => {
+      return `Comment ${index + 1} | score: ${c.score} | author: ${c.author} | depth: ${c.depth}\n${c.body}`;
+    })
+    .join("\n\n---\n\n");
+
+  // 这是最终喂给 AI 的完整输入
+  const aiInput = `
+Reddit Source:
+r/${subreddit}
+
+Post Title:
+${title}
+
+Post Text:
+${postText || "No post body."}
+
+Top Comments:
+${commentsText || "No useful comments found."}
+
+Post Score:
+${score}
+
+Number of Comments:
+${numComments}
+
+Source URL:
+${sourceUrl}
+  `.trim();
+
+  // 输出统一字段，供 AI、Notion 节点使用
+  return {
+    json: {
+      source: "Reddit",
+      source_name: subreddit ? `r/${subreddit}` : "",
+      reddit_id: redditId,
+      dup_key: redditId || sourceUrl,
+      source_url: sourceUrl,
+      original_title: title,
+      original_text: postText,
+      author,
+      post_score: score,
+      comments_count: rawComments.length,
+      useful_comments_count: usefulComments.length,
+
+      // 限制长度，避免后面 Notion 或 AI 输入过长
+      top_comments_text: commentsText.slice(0, 8000),
+      ai_input: aiInput.slice(0, 12000),
+
+      created_utc: createdUtc
+    }
+  };
+});
+```
 
 主要输出字段：
 
-```markdown
 | 字段 | 含义 |
 | --- | --- |
 | `reddit_id` | Reddit 帖子 ID |
@@ -898,29 +1182,32 @@ Code
 | `useful_comments_count` | 被保留给 AI 的评论数量 |
 | `top_comments_text` | 前 20 条高价值评论文本 |
 | `ai_input` | 给 AI 判断用的完整输入 |
-```
 
-#### 节点 14：AI 判断 + 格式化
+### 节点 14：AI 判断 + 格式化1
 
 节点类型：
 
-```
+```text
 Basic LLM Chain
 ```
 
 节点作用：
 
-```
+```text
 让 DeepSeek 判断这条 Reddit 帖子是否值得进入入境游内容库，并输出 JSON。
 ```
 
 当前配置：
 
-![image.png](image%208.png)
+| 配置项 | 当前值 |
+| --- | --- |
+| Prompt Type | `define` |
+| Batching Batch Size | `1` |
+| Delay Between Batches | `1000` ms |
 
 主 Prompt：
 
-```
+```text
 你是一个专门研究入境游需求的内容分析助手。
 
 请阅读下面 Reddit 帖子和评论区，判断它是否值得进入我的“入境游内容选题库”。
@@ -951,7 +1238,7 @@ Basic LLM Chain
 
 System Message：
 
-```
+```text
 You are an inbound China travel intelligence analyst for U Travel.
 
 Your job is to analyze Reddit posts and decide whether they contain useful pain points, questions, confusions, fears, objections, or practical solutions from foreign travelers visiting China.
@@ -972,13 +1259,17 @@ Important rules:
 11. Use enum values exactly when choosing content_type, category, emotion, and travel_stage.
 ```
 
-System Message = 给 AI 设定“身份、规则、边界”
+小白理解：
 
-Prompt / User Message = 给 AI 当前这一次要处理的“具体任务和输入内容”
+```text
+这个节点会读 ai_input。
+如果它认为帖子是有价值的入境游痛点，就输出 is_relevant: true。
+如果只是普通分享，就输出 is_relevant: false。
+```
 
 注意：
 
-```
+```text
 当前 Prompt 要求 AI 输出一些字段，但 System Message 里还提到了 reject_reason、scores、hook_titles、emotion、travel_stage。
 这些字段没有在后续 Code 节点中使用。
 当前工作流真正使用的是：
@@ -992,68 +1283,244 @@ hook
 evidence
 ```
 
-#### 节点 15：DeepSeek Chat Model1
+### 节点 15：DeepSeek Chat Model1
 
 节点类型：
 
-```
+```text
 DeepSeek Chat Model
 ```
 
 节点作用：
 
-```
+```text
 给 AI 判断节点提供大模型。
 ```
 
 当前配置：
 
-![image.png](image%209.png)
+```json
+{
+  "options": {}
+}
+```
 
-注意：在Credentials中输入正确的API
+凭证：
 
-规定输出格式为JSON，方便后续分类
+```text
+DeepSeek account
+```
 
-#### 节点 16：存处理记录
+小白理解：
+
+```text
+AI 判断 + 格式化1 本身只是链条节点。
+真正的大模型能力来自这个 DeepSeek Chat Model1。
+```
+
+当前没有设置：
+
+```text
+temperature
+maxTokens
+responseFormat
+```
+
+可选优化：
+
+```text
+后期如果 AI JSON 不稳定，可以把 temperature 调低，比如 0.2。
+如果 DeepSeek 节点支持 JSON 模式，也可以设置 responseFormat = json_object。
+```
+
+### 节点 16：Code 解析AI JSON1
 
 节点类型：
 
+```text
+Code
 ```
+
+节点作用：
+
+```text
+解析 AI 输出的 JSON，把字段整理成后续 Notion 节点能使用的结构。
+```
+
+为什么需要这个节点：
+
+```text
+AI 有时会输出纯 JSON。
+有时会包在 ```json 代码块里。
+有时前后会多写几句话。
+这个节点负责尽量提取里面真正的 JSON。
+```
+
+当前代码：
+
+```javascript
+function extractJson(text) {
+  const raw = String(text || "").trim();
+
+  const withoutCodeFence = raw
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/```$/i, "")
+    .trim();
+
+  try {
+    return JSON.parse(withoutCodeFence);
+  } catch (e) {
+    const match = withoutCodeFence.match(/\{[\s\S]*\}/);
+    if (match) {
+      return JSON.parse(match[0]);
+    }
+    throw new Error("AI 输出不是有效 JSON: " + raw);
+  }
+}
+
+return items.map(item => {
+  const j = item.json;
+
+  const aiRaw =
+    j.text ||
+    j.output ||
+    j.response ||
+    j.result ||
+    j.message ||
+    "";
+
+  const parsed = extractJson(aiRaw);
+
+  return {
+    json: {
+      ...j,
+      ai_raw: aiRaw,
+      is_relevant: Boolean(parsed.is_relevant),
+      content_type: parsed.content_type || "",
+      category: parsed.category || "",
+      pain_point_summary: parsed.pain_point_summary || "",
+      solution_summary: parsed.solution_summary || "",
+      content_angle: parsed.content_angle || "",
+      hook: parsed.hook || "",
+      evidence: parsed.evidence || ""
+    }
+  };
+});
+```
+
+带注释解释版：
+
+```javascript
+// 从 AI 输出文本里提取 JSON
+function extractJson(text) {
+  // 把输入转成字符串，并去掉首尾空格
+  const raw = String(text || "").trim();
+
+  // 如果 AI 输出了 ```json ... ```，先把代码块标记去掉
+  const withoutCodeFence = raw
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/```$/i, "")
+    .trim();
+
+  try {
+    // 第一种情况：AI 输出本身就是干净 JSON
+    return JSON.parse(withoutCodeFence);
+  } catch (e) {
+    // 第二种情况：AI 前后多写了文字，就尝试提取第一个 {...}
+    const match = withoutCodeFence.match(/\{[\s\S]*\}/);
+    if (match) {
+      return JSON.parse(match[0]);
+    }
+
+    // 如果还是解析不了，就抛出错误，让 n8n 显示问题
+    throw new Error("AI 输出不是有效 JSON: " + raw);
+  }
+}
+
+return items.map(item => {
+  // j 是 AI 节点输出
+  const j = item.json;
+
+  // 不同 n8n/LLM 节点可能把 AI 文本放在不同字段里
+  // 这里按常见字段顺序兜底查找
+  const aiRaw =
+    j.text ||
+    j.output ||
+    j.response ||
+    j.result ||
+    j.message ||
+    "";
+
+  // 解析 AI JSON
+  const parsed = extractJson(aiRaw);
+
+  // 输出后续节点需要的字段
+  return {
+    json: {
+      ...j,
+      ai_raw: aiRaw,
+      is_relevant: Boolean(parsed.is_relevant),
+      content_type: parsed.content_type || "",
+      category: parsed.category || "",
+      pain_point_summary: parsed.pain_point_summary || "",
+      solution_summary: parsed.solution_summary || "",
+      content_angle: parsed.content_angle || "",
+      hook: parsed.hook || "",
+      evidence: parsed.evidence || ""
+    }
+  };
+});
+```
+
+主要输出字段：
+
+| 字段 | 含义 |
+| --- | --- |
+| `ai_raw` | AI 原始输出 |
+| `is_relevant` | 是否相关 |
+| `content_type` | 内容类型 |
+| `category` | 分类 |
+| `pain_point_summary` | 痛点总结 |
+| `solution_summary` | 解决方案总结 |
+| `content_angle` | 内容角度 |
+| `hook` | 英文标题 |
+| `evidence` | 关键依据 |
+
+### 节点 17：存处理记录
+
+节点类型：
+
+```text
 Notion
 ```
 
 节点作用：
 
-```
+```text
 把这条 Reddit 帖子写入 Reddit数据记录库，表示它已经被处理过。
 ```
 
 重要：
 
-```
+```text
 无论 AI 判断相关还是不相关，都会先写处理记录。
 这样下次不会重复分析同一个帖子。
 ```
 
 当前配置：
 
-首先在Credential中加入notion的API
+| 配置项 | 当前值 |
+| --- | --- |
+| Resource | `databasePage` |
+| Database | `Reddit数据记录库` |
+| Database ID | `YOUR_NOTION_RECORD_DATABASE_ID` |
+| Simple | `false` |
+| Credential | `Notion account` |
 
-![image.png](image%2010.png)
+字段映射：
 
-配置如下：
-
-其中Title可以任取
-
-![image.png](image%2011.png)
-
-对于notion数据库进行字段映射，其中Key Name or ID 能够自动进行下拉选择：
-
-![image.png](image%2012.png)
-
-详细映射如下：
-
-```markdown
 | Notion 字段 | 写入值 |
 | --- | --- |
 | `is_relevant` | `={{ $json.is_relevant }}` |
@@ -1064,63 +1531,82 @@ Notion
 | `source_url` | `={{ $('Format Reddit Post And Comments').item.json.source_url }}` |
 | `source_name ` | `={{ $('Format Reddit Post And Comments').item.json.source_name }}` |
 | `processed_at  ` | `2026-05-11T16:47:14` |
+
+注意：
+
+```text
+source_name 后面有一个空格。
+processed_at 后面有两个空格。
+这是 Notion 字段名里的真实空格。
 ```
 
-#### 节点 17：Filter 筛选相关内容1
+另一个注意点：
+
+```text
+processed_at 当前是固定时间：2026-05-11T16:47:14。
+如果你希望记录真实处理时间，后期建议改成：
+{{ $now }}
+```
+
+### 节点 18：Filter 筛选相关内容1
 
 节点类型：
 
-```
+```text
 Filter
 ```
 
 节点作用：
 
-```
+```text
 只让 AI 判断为相关的内容进入入境游内容库。
 ```
 
 当前条件：
 
-```
+```text
 {{ ($json.is_relevant === true || $json.is_relevant === "true").toString() }} equals true
 ```
 
-理解：
+小白理解：
 
-```
+```text
 如果 AI 输出 is_relevant = true，就继续写内容库。
 如果 AI 输出 is_relevant = false，就跳过内容库，回到 Loop Over Items2 处理下一条。
 ```
 
 连接逻辑：
 
-```
+```text
 true 分支 -> 存入notion内容库
 false 分支 -> Loop Over Items2
 ```
 
-#### 节点 18：存入notion内容库
+### 节点 19：存入notion内容库
 
 节点类型：
 
-```
+```text
 Notion
 ```
 
 节点作用：
 
-```
+```text
 把 AI 判断为相关的帖子写入入境游内容库。
 ```
 
 当前配置：
 
-![image.png](image%2013.png)
+| 配置项 | 当前值 |
+| --- | --- |
+| Resource | `databasePage` |
+| Database | `入境游内容库` |
+| Database ID | `YOUR_NOTION_CONTENT_DATABASE_ID` |
+| Credential | `Notion account` |
 
 字段映射：
 
-```markdown
 | Notion 字段 | 写入值 |
 | --- | --- |
 | `name` | `={{ $json.hook }}` |
@@ -1137,11 +1623,17 @@ Notion
 | `solution_summary` | `={{ $('Code 解析AI JSON1').item.json.solution_summary }}` |
 | `source_name ` | `={{ $('Format Reddit Post And Comments').item.json.source_name }}` |
 | `source_url ` | `={{ $('Format Reddit Post And Comments').item.json.source_url }}` |
+
+注意：
+
+```text
+original_title、pain_point_summary、source_name、source_url 这些字段名后面都有空格。
+这是当前 Notion 库里的真实字段名。
 ```
 
 写入成功后：
 
-```
+```text
 这条内容会进入入境游内容库。
 后续 Engine 2 可以继续筛选这些内容，做解决方案研究。
 ```
@@ -1150,14 +1642,14 @@ Notion
 
 假设 RSS 抓到一条 Reddit 帖子：
 
-```
+```text
 Title: Can I use Alipay as a foreigner in China?
 URL: https://www.reddit.com/r/travelchina/comments/xxxx/...
 ```
 
 完整流程是：
 
-```
+```text
 1. Build Local Proxy URL 提取 reddit_id 和 source_url
 2. Loop Over Items2 开始逐条处理
 3. Check Record DB 查记录库
@@ -1180,13 +1672,13 @@ URL: https://www.reddit.com/r/travelchina/comments/xxxx/...
 
 浏览器或 HTTP 工具能打开：
 
-```
-http://127.0.0.1:8787/reddit/travelchina.rss?sort=new
+```text
+http://YOUR_LOCAL_REDDIT_PROXY:8787/reddit/travelchina.rss?sort=new
 ```
 
 ### 第二步：打开工作流
 
-```
+```text
 http://localhost:5678/workflow/aOUAKkEsQnXGAs8U
 ```
 
@@ -1194,7 +1686,7 @@ http://localhost:5678/workflow/aOUAKkEsQnXGAs8U
 
 如果只是测试，建议：
 
-```
+```text
 Limit -> Max Items = 1
 ```
 
@@ -1204,7 +1696,7 @@ Limit -> Max Items = 1
 
 点击：
 
-```
+```text
 Execute Workflow
 ```
 
@@ -1212,7 +1704,7 @@ Execute Workflow
 
 重点检查这些节点：
 
-```
+```text
 RSS Read
 Build Local Proxy URL
 Check Record DB
@@ -1225,13 +1717,25 @@ Code 解析AI JSON1
 存入notion内容库
 ```
 
+如果 `Code 解析AI JSON1` 输出里有这些字段，就说明 AI 判断阶段基本正常：
+
+```text
+is_relevant
+content_type
+category
+pain_point_summary
+solution_summary
+hook
+evidence
+```
+
 ## 10. 常见问题排查
 
 ### 问题 1：RSS Read 报 403
 
 可能原因：
 
-```
+```text
 Reddit 拦截请求
 本地代理没有正确伪装请求头
 代理服务异常
@@ -1239,16 +1743,39 @@ Reddit 拦截请求
 
 处理方式：
 
-```
-先在浏览器打开 http://127.0.0.1:8787/reddit/travelchina.rss?sort=new
+```text
+先在浏览器打开 http://YOUR_LOCAL_REDDIT_PROXY:8787/reddit/travelchina.rss?sort=new
 如果浏览器也打不开，先修本地代理
 ```
 
-### 问题 2：Fetch Reddit Via Local Proxy 报 502
+### 问题 2：RSS Read 只有 1 条输入
+
+这是正常的。
+
+原因：
+
+```text
+Loop Over Items 当前一次只把 1 个 RSS 源交给 RSS Read。
+不是只抓 1 条帖子。
+真正的帖子数量看 RSS Read 的输出和 Limit 节点。
+```
+
+### 问题 3：后面每次只处理一条帖子
+
+这是 Loop Over Items2 的正常行为。
+
+原因：
+
+```text
+Loop Over Items2 一次只放一条帖子给后面的查重、评论抓取、AI 判断节点。
+处理完再回到 Loop Over Items2 继续下一条。
+```
+
+### 问题 4：Fetch Reddit Via Local Proxy 报 502
 
 可能原因：
 
-```
+```text
 本地代理抓 Reddit 评论失败
 Reddit 暂时拦截
 帖子 URL 异常
@@ -1257,35 +1784,98 @@ Reddit 暂时拦截
 
 处理方式：
 
-```
+```text
 复制 Loop Over Items2 输出里的 source_url
 手动访问：
-http://127.0.0.1:8787/reddit-comments?url=你的Reddit链接
+http://YOUR_LOCAL_REDDIT_PROXY:8787/reddit-comments?url=你的Reddit链接
 ```
 
-### 问题 3：相关内容没有进内容库
+### 问题 5：AI 节点输出不是 JSON
+
+报错节点通常是：
+
+```text
+Code 解析AI JSON1
+```
+
+可能原因：
+
+```text
+DeepSeek 输出了 Markdown
+DeepSeek 多写了解释
+DeepSeek 少输出字段
+输入太长导致截断
+```
+
+处理方式：
+
+```text
+先看 AI 判断 + 格式化1 的输出
+确认它是不是纯 JSON
+```
+
+可选优化：
+
+```text
+给 DeepSeek Chat Model1 设置 temperature = 0.2
+如果支持 JSON 模式，开启 responseFormat = json_object
+```
+
+### 问题 6：Notion 查重没有生效
 
 重点检查：
 
+```text
+Check Record DB 的 dup_key / reddit_id / source_url 是否有值
+Check Content DB 的 reddit_id / source_url 是否有值
+Notion 字段名是否和节点配置一致
+字段名后面的空格是否被改掉
 ```
+
+尤其是内容库字段：
+
+```text
+source_url 
+```
+
+后面有一个空格。
+
+### 问题 7：不相关内容也进了内容库
+
+重点检查：
+
+```text
+Code 解析AI JSON1 输出的 is_relevant 是什么
+Filter 筛选相关内容1 的条件是否为 true
+AI 是否错误判断了相关性
+```
+
+如果 AI 判断太宽松，需要调整 `AI 判断 + 格式化1` 的 Prompt。
+
+### 问题 8：相关内容没有进内容库
+
+重点检查：
+
+```text
 AI 是否输出 is_relevant: true
+Code 解析AI JSON1 是否正确解析
 Filter 筛选相关内容1 是否走 true 分支
 存入notion内容库 是否报字段类型错误
 ```
 
 ## 11. 当前值得注意的配置
 
-### 11.1 Limit 当前是 6
+### 11.1 Limit 当前是 10
 
-```
-Limit -> Max Items = 6
+```text
+Limit -> Max Items = 10
 ```
 
-这表示每个 RSS 源最多处理 6条帖子。
+这表示每个 RSS 源最多处理 10 条帖子。
 
 测试时可以改成：
 
-```
+```text
 1
 ```
 
@@ -1293,13 +1883,13 @@ Limit -> Max Items = 6
 
 当前：
 
-```
+```text
 2026-05-11T16:47:14
 ```
 
 建议后期改成：
 
-```
+```text
 {{ $now }}
 ```
 
@@ -1317,7 +1907,7 @@ Limit -> Max Items = 6
 
 如果 JSON 稳定性不够，建议后期设置：
 
-```
+```text
 temperature = 0.2
 maxTokens = 1500 或 2000
 responseFormat = json_object
@@ -1327,8 +1917,8 @@ responseFormat = json_object
 
 这个工作流能不能抓评论，关键不在 n8n，而在：
 
-```
-http://127.0.0.1:8787/reddit-comments
+```text
+http://YOUR_LOCAL_REDDIT_PROXY:8787/reddit-comments
 ```
 
 如果 Reddit 抓取出问题，先查代理服务。
@@ -1339,7 +1929,7 @@ http://127.0.0.1:8787/reddit-comments
 
 来自 `RSS Read` 和 `Build Local Proxy URL`：
 
-```
+```text
 feed_url
 source_name
 reddit_id
@@ -1357,7 +1947,7 @@ rss_snippet
 
 来自 `Fetch Reddit Via Local Proxy` 和 `Format Reddit Post And Comments`：
 
-```
+```text
 original_text
 post_score
 comments_count
@@ -1371,7 +1961,7 @@ created_utc
 
 来自 `AI 判断 + 格式化1` 和 `Code 解析AI JSON1`：
 
-```
+```text
 is_relevant
 content_type
 category
@@ -1387,7 +1977,7 @@ ai_raw
 
 写入记录库：
 
-```
+```text
 is_relevant
 name
 dup_key
@@ -1400,7 +1990,7 @@ processed_at
 
 写入内容库：
 
-```
+```text
 name
 author
 category
@@ -1423,7 +2013,7 @@ source_url
 
 按这个顺序：
 
-```
+```text
 1. RSS Read 是否有多条帖子
 2. Build Local Proxy URL 是否有 reddit_id 和 source_url
 3. Check Record DB 是否返回空或已有记录
@@ -1439,11 +2029,32 @@ source_url
 13. 存入notion内容库 是否成功
 ```
 
-## 14. 和 Engine 2 的关系（后续会出）
+## 14. 工作流安全边界
+
+这个工作流里 AI 只做判断和格式化。
+
+AI 不直接写 Notion。
+
+真正写 Notion 的只有两个普通 Notion 节点：
+
+```text
+存处理记录
+存入notion内容库
+```
+
+这样设计比较安全：
+
+```text
+AI 不能越权乱改数据库
+写入字段都能在 n8n 节点里清楚看到
+哪里出错更容易定位
+```
+
+## 15. 和 Engine 2 的关系
 
 Engine 1 结束后，如果 AI 判断相关，会写入：
 
-```
+```text
 入境游内容库
 ```
 
@@ -1451,7 +2062,7 @@ Engine 2 会继续从这个内容库里找待调研内容。
 
 一般关系是：
 
-```
+```text
 Engine 1：发现痛点
 Engine 2：研究解决方案
 Engine 3：生成内容草稿
@@ -1461,11 +2072,11 @@ Engine 3：生成内容草稿
 
 如果 Engine 1 误判太多，Engine 2 就会浪费时间研究低价值内容。
 
-## 15. 最小可用检查清单
+## 16. 最小可用检查清单
 
 每次运行前快速检查：
 
-```
+```text
 1. n8n 已启动
 2. 本地 Reddit 代理 8787 已启动
 3. RSS 地址能打开
@@ -1477,3 +2088,4 @@ Engine 3：生成内容草稿
 9. AI 输出是 JSON
 10. Notion 内容库没有重复写入
 ```
+
