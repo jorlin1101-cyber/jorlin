@@ -40,7 +40,7 @@ Engine 2 再负责“搜索解决方案”和“研究总结”。
 | --- | --- |
 | Workflow ID | `aOUAKkEsQnXGAs8U` |
 | Workflow Name | `Reddit 情报采集器` |
-| 当前节点数 | 19 个 |
+| 当前节点数 | 18 个 |
 | 触发方式 | Schedule Trigger，每 6 小时一次 |
 | 当前工作流状态 | 未启用自动运行时，可手动 Execute 测试 |
 | Reddit RSS 来源 | `http://127.0.0.1:8787/reddit/travelchina.rss?sort=new` |
