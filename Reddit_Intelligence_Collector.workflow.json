@@ -1,0 +1,756 @@
+{
+  "updatedAt": "2026-05-12 10:14:08.413",
+  "createdAt": "2026-05-09 07:16:22.893",
+  "id": "aOUAKkEsQnXGAs8U",
+  "name": "Reddit 情报采集器",
+  "description": null,
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -1088,
+        0
+      ],
+      "id": "b37f9b54-2e5f-4f0e-88d8-2b85acafde01",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    json: {\n      feed_url: \"http://127.0.0.1:8787/reddit/travelchina.rss?sort=new\",\n      source_name: \"r/travelchina new\"\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -864,
+        0
+      ],
+      "id": "d4f39d78-3d6a-4a1a-a0d6-57e6fa330902",
+      "name": "Feed URL List"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -640,
+        0
+      ],
+      "id": "54e5fbfb-dff4-4200-961b-28c62bdf12c1",
+      "name": "Loop Over Items",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.feed_url }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [
+        -416,
+        16
+      ],
+      "id": "19b33ac0-89b2-4f33-96ec-40381df7dd15",
+      "name": "RSS Read"
+    },
+    {
+      "parameters": {
+        "maxItems": 10
+      },
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        -272,
+        16
+      ],
+      "id": "0b29d3d3-0b5c-4d32-823e-766beaf94d9c",
+      "name": "Limit"
+    },
+    {
+      "parameters": {
+        "jsCode": "const seen = new Set();\nreturn items\n  .map(item => {\n  const j = item.json;\n\n  const sourceUrl = j.link || j.guid || \"\";\n\n  const cleanUrl = sourceUrl\n    .split(\"?\")[0]\n    .replace(/\\/$/, \"\");\n\n  const redditIdMatch = cleanUrl.match(/comments\\/([^/]+)/);\n  const redditId = redditIdMatch ? redditIdMatch[1] : \"\";\n\n  // 这里改成你的本地中转服务接口地址\n  const localProxyUrl = `http://127.0.0.1:8787/reddit-comments?url=${encodeURIComponent(cleanUrl)}`;\n\n  return {\n    json: {\n      source: \"Reddit\",\n      source_name: j.source_name || \"\",\n      reddit_id: redditId,\n      dup_key: redditId || cleanUrl,\n      original_title: j.title || \"\",\n      source_url: cleanUrl,\n      local_proxy_url: localProxyUrl,\n      published_at: j.isoDate || j.pubDate || \"\",\n      author: j.creator || j.author || \"\",\n      rss_content: j.content || \"\",\n      rss_snippet: j.contentSnippet || \"\"\n    }\n  };\n})\n .filter(item => {\n   const key = item.json.dup_key;\n\n    if (!key) return false;\n\n    if (seen.has(key)) {\n      return false;\n    }\n\n    seen.add(key);\n    return true;\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -80,
+        16
+      ],
+      "id": "26b120bb-a184-4e78-8567-4a07ef87b596",
+      "name": "Build Local Proxy URL"
+    },
+    {
+      "parameters": {
+        "url": "http://127.0.0.1:8787/reddit-comments",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={\n  \"url\": \"{{ $('Loop Over Items2').item.json.source_url }}\",\n  \"limit\": 100,\n  \"depth\": 6\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1376,
+        0
+      ],
+      "id": "04ac59c8-c4cb-4ac0-bebb-4ce50bb2a714",
+      "name": "Fetch Reddit Via Local Proxy",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "databaseId": {
+          "__rl": true,
+          "value": "35dfed01-79aa-8061-8a0a-e321a6cf38b3",
+          "mode": "list",
+          "cachedResultName": "入境游内容库",
+          "cachedResultUrl": "https://www.notion.so/35dfed0179aa80618a0ae321a6cf38b3"
+        },
+        "limit": 1,
+        "filterType": "json",
+        "filterJson": "={\n  \"or\": [\n    {\n      \"property\": \"reddit_id\",\n      \"rich_text\": {\n        \"equals\": \"{{ $('Loop Over Items2').item.json.reddit_id }}\"\n      }\n    },\n    {\n      \"property\": \"source_url \",\n      \"url\": {\n        \"equals\": \"{{ $('Loop Over Items2').item.json.source_url }}\"\n      }\n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        832,
+        16
+      ],
+      "id": "94155ff9-0501-4d64-9399-6ccb89008ec6",
+      "name": "Check Content DB",
+      "alwaysOutputData": true,
+      "credentials": {
+        "notionApi": {
+          "id": "zoKalUABLF0XX80k",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "function cleanText(text) {\n  return String(text || \"\")\n    .replace(/<[^>]*>/g, \" \")\n    .replace(/&nbsp;/g, \" \")\n    .replace(/&amp;/g, \"&\")\n    .replace(/&lt;/g, \"<\")\n    .replace(/&gt;/g, \">\")\n    .replace(/&#32;/g, \" \")\n    .replace(/\\[deleted\\]/gi, \"\")\n    .replace(/\\[removed\\]/gi, \"\")\n    .replace(/\\s+/g, \" \")\n    .trim();\n}\n\nreturn items.map(item => {\n  const j = item.json;\n  const post = j.post || {};\n\n  const title = cleanText(post.title || \"\");\n  const postText = cleanText(post.selftext || \"\");\n  const sourceUrl = j.source_url || \"\";\n  const redditId = post.id || \"\";\n  const subreddit = post.subreddit || \"\";\n  const author = post.author || \"\";\n  const score = post.score || 0;\n  const numComments = post.num_comments || 0;\n  const createdUtc = post.created_utc || \"\";\n\n  const rawComments = Array.isArray(j.flat_comments)\n    ? j.flat_comments\n    : Array.isArray(j.comments)\n      ? j.comments\n      : [];\n\n  const usefulComments = rawComments\n    .map(c => ({\n      author: c.author || \"\",\n      score: c.score || 0,\n      depth: c.depth || 0,\n      body: cleanText(c.body || c.text || \"\")\n    }))\n    .filter(c => c.body.length > 10)\n    .sort((a, b) => b.score - a.score)\n    .slice(0, 20);\n\n  const commentsText = usefulComments\n    .map((c, index) => {\n      return `Comment ${index + 1} | score: ${c.score} | author: ${c.author} | depth: ${c.depth}\\n${c.body}`;\n    })\n    .join(\"\\n\\n---\\n\\n\");\n\n  const aiInput = `\nReddit Source:\nr/${subreddit}\n\nPost Title:\n${title}\n\nPost Text:\n${postText || \"No post body.\"}\n\nTop Comments:\n${commentsText || \"No useful comments found.\"}\n\nPost Score:\n${score}\n\nNumber of Comments:\n${numComments}\n\nSource URL:\n${sourceUrl}\n  `.trim();\n\n  return {\n    json: {\n      source: \"Reddit\",\n      source_name: subreddit ? `r/${subreddit}` : \"\",\n      reddit_id: redditId,\n      dup_key: redditId || sourceUrl,\n      source_url: sourceUrl,\n      original_title: title,\n      original_text: postText,\n      author,\n      post_score: score,\n      comments_count: rawComments.length,\n      useful_comments_count: usefulComments.length,\n      top_comments_text: commentsText.slice(0, 8000),\n      ai_input: aiInput.slice(0, 12000),\n      created_utc: createdUtc\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1632,
+        -16
+      ],
+      "id": "d6e2d170-cce9-4cc4-bbb0-250e399e160a",
+      "name": "Format Reddit Post And Comments"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "content-not-found",
+              "leftValue": "={{ $json.id || \"\" }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1120,
+        16
+      ],
+      "id": "04e32d99-a968-4e9c-9840-5a14fce01e79",
+      "name": "IF Content Missing"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=你是一个专门研究入境游需求的内容分析助手。\n\n请阅读下面 Reddit 帖子和评论区，判断它是否值得进入我的“入境游内容选题库”。\n\n判断标准：\n1. 是否包含外国游客来中国旅行的痛点、疑问、担忧或决策困难\n2. 是否包含评论区给出的实用解决方案\n3. 是否可以改写成社交媒体内容\n4. 如果只是普通风景分享、照片分享、历史介绍、没有明确问题，则判定为不相关\n\n输入内容：\n{{ $json.ai_input }}\n\n请只输出 JSON，不要 Markdown，不要解释，不要代码块。\n\n输出格式：\n{\n  \"is_relevant\": true,\n  \"content_type\": \"痛点/解决方案/经验分享/普通分享\",\n  \"category\": \"支付/交通/住宿/签证/景点/语言/网络/安全/路线/其他\",\n  \"pain_point_summary\": \"一句话总结用户痛点，如果没有则为空字符串\",\n  \"solution_summary\": \"一句话总结评论区或帖子中的解决方案，如果没有则为空字符串\",\n  \"content_angle\": \"这个帖子可以做成什么内容角度，如果不相关则为空字符串\",\n  \"hook\": \"一个英文社交媒体标题，如果不相关则为空字符串\",\n  \"evidence\": \"引用帖子或评论中的关键依据\"\n}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "You are an inbound China travel intelligence analyst for U Travel.\n\nYour job is to analyze Reddit posts and decide whether they contain useful pain points, questions, confusions, fears, objections, or practical solutions from foreign travelers visiting China.\n\nU Travel focuses on helping foreign visitors experience China like locals, especially Chengdu and Sichuan. The brand tone is local, practical, friendly, non-salesy, and experience-based.\n\nImportant rules:\n1. Output only valid JSON.\n2. Do not use Markdown.\n3. Do not wrap the JSON in code blocks.\n4. Do not output null.\n5. Always output the same JSON structure.\n6. If the post is irrelevant, set \"is_relevant\" to false and explain the reason in \"reject_reason\".\n7. For irrelevant posts, still fill every required string field with an empty string or short reason, scores with 1, and hook_titles with 3 short placeholders.\n8. Avoid commercial language. Do not write \"book a tour\", \"DM me\", \"contact me\", or \"I can guide you\".\n9. Hook titles should sound natural for Reddit, not like AI marketing copy.\n10. Focus on real travel pain points: visa, payment, transport, food, language, apps, itinerary, safety, culture shock, TCM, local experiences, Chengdu, Sichuan, western China, accommodation, SIM/eSIM, translation, and first-time China travel.\n11. Use enum values exactly when choosing content_type, category, emotion, and travel_stage."
+            }
+          ]
+        },
+        "batching": {
+          "batchSize": 1,
+          "delayBetweenBatches": 1000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        1888,
+        -16
+      ],
+      "id": "b7d879d2-3fe2-46bb-a3bc-afb0c14dc51a",
+      "name": "AI 判断 + 格式化1"
+    },
+    {
+      "parameters": {
+        "options": {
+          "responseFormat": "json_object"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatDeepSeek",
+      "typeVersion": 1,
+      "position": [
+        1888,
+        176
+      ],
+      "id": "ef2af48a-b4d8-47e0-854e-cbb482906cc2",
+      "name": "DeepSeek Chat Model1",
+      "credentials": {
+        "deepSeekApi": {
+          "id": "uPna6P3mUExbpSIp",
+          "name": "DeepSeek account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "ca5fd8bd-24f5-42e9-a35a-427e41a2a8ff",
+              "leftValue": "={{ ($json.is_relevant === true || $json.is_relevant === \"true\").toString() }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        2560,
+        -16
+      ],
+      "id": "e42b4e11-d2ef-4a54-930c-e82b07e12bde",
+      "name": "Filter 筛选相关内容1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        176,
+        16
+      ],
+      "id": "ee465a5a-de3d-424d-9522-c83e9342ce35",
+      "name": "Loop Over Items2",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "databaseId": {
+          "__rl": true,
+          "value": "35dfed01-79aa-801b-8ebc-ce8d72b4a33f",
+          "mode": "list",
+          "cachedResultName": "Reddit数据记录库",
+          "cachedResultUrl": "https://www.notion.so/35dfed0179aa801b8ebcce8d72b4a33f"
+        },
+        "title": "={{ $json.original_title || $json.reddit_id || \"Reddit Post\" }}",
+        "simple": false,
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "is_relevant |checkbox",
+              "checkboxValue": "={{ $json.is_relevant }}"
+            },
+            {
+              "key": "name|title",
+              "title": "={{ $('Format Reddit Post And Comments').item.json.original_title }}"
+            },
+            {
+              "key": "dup_key|rich_text",
+              "textContent": "={{ $('Format Reddit Post And Comments').item.json.dup_key }}"
+            },
+            {
+              "key": "original_title|rich_text",
+              "textContent": "={{ $('Format Reddit Post And Comments').item.json.original_title }}"
+            },
+            {
+              "key": "reddit_id|rich_text",
+              "textContent": "={{ $('Format Reddit Post And Comments').item.json.reddit_id }}"
+            },
+            {
+              "key": "source_url|url",
+              "urlValue": "={{ $('Format Reddit Post And Comments').item.json.source_url }}"
+            },
+            {
+              "key": "source_name |rich_text",
+              "textContent": "={{ $('Format Reddit Post And Comments').item.json.source_name }}"
+            },
+            {
+              "key": "processed_at  |date",
+              "date": "2026-05-11T16:47:14"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        2416,
+        -176
+      ],
+      "id": "3d05015e-a7ce-4cfb-8c89-bd1004cd6fae",
+      "name": "存处理记录",
+      "credentials": {
+        "notionApi": {
+          "id": "zoKalUABLF0XX80k",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "databaseId": {
+          "__rl": true,
+          "value": "35dfed01-79aa-8061-8a0a-e321a6cf38b3",
+          "mode": "list",
+          "cachedResultName": "入境游内容库",
+          "cachedResultUrl": "https://www.notion.so/35dfed0179aa80618a0ae321a6cf38b3"
+        },
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "name|title",
+              "title": "={{ $json.hook }}"
+            },
+            {
+              "key": "author|rich_text",
+              "textContent": "={{ $('Format Reddit Post And Comments').item.json.author }}"
+            },
+            {
+              "key": "category|select",
+              "selectValue": "={{ $json.category }}"
+            },
+            {
+              "key": "comments_count|number",
+              "numberValue": "={{ $('Format Reddit Post And Comments').item.json.comments_count }}"
+            },
+            {
+              "key": "content_type|select",
+              "selectValue": "={{ $json.content_type }}"
+            },
+            {
+              "key": "evidence|rich_text",
+              "textContent": "={{ $json.evidence }}"
+            },
+            {
+              "key": "hook|rich_text",
+              "textContent": "={{ $json.hook }}"
+            },
+            {
+              "key": "original_title |rich_text",
+              "textContent": "={{ $('Format Reddit Post And Comments').item.json.original_title }}"
+            },
+            {
+              "key": "pain_point_summary |rich_text",
+              "textContent": "={{ $json.pain_point_summary }}"
+            },
+            {
+              "key": "post_score|number",
+              "numberValue": "={{ $('Format Reddit Post And Comments').item.json.post_score }}"
+            },
+            {
+              "key": "reddit_id|rich_text",
+              "textContent": "={{ $('Format Reddit Post And Comments').item.json.reddit_id }}"
+            },
+            {
+              "key": "solution_summary|rich_text",
+              "textContent": "={{ $json.solution_summary }}"
+            },
+            {
+              "key": "source_name |rich_text",
+              "textContent": "={{ $('Format Reddit Post And Comments').item.json.source_name }}"
+            },
+            {
+              "key": "source_url |url",
+              "urlValue": "={{ $('Format Reddit Post And Comments').item.json.source_url }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        2784,
+        -16
+      ],
+      "id": "98cbb239-583b-4f49-8580-9c66e7cdfecb",
+      "name": "存入notion内容库",
+      "credentials": {
+        "notionApi": {
+          "id": "zoKalUABLF0XX80k",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "databaseId": {
+          "__rl": true,
+          "value": "35dfed01-79aa-801b-8ebc-ce8d72b4a33f",
+          "mode": "list",
+          "cachedResultName": "Reddit数据记录库",
+          "cachedResultUrl": "https://www.notion.so/35dfed0179aa801b8ebcce8d72b4a33f"
+        },
+        "limit": 1,
+        "filterType": "json",
+        "filterJson": "={\n  \"or\": [\n    {\n      \"property\": \"dup_key\",\n      \"rich_text\": {\n        \"equals\": \"{{ $('Loop Over Items2').item.json.dup_key }}\"\n      }\n    },\n    {\n      \"property\": \"reddit_id\",\n      \"rich_text\": {\n        \"equals\": \"{{ $('Loop Over Items2').item.json.reddit_id }}\"\n      }\n    },\n    {\n      \"property\": \"source_url\",\n      \"url\": {\n        \"equals\": \"{{ $('Loop Over Items2').item.json.source_url }}\"\n      }\n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        384,
+        32
+      ],
+      "id": "db0a9987-0714-4656-9def-79020e4fe9c5",
+      "name": "Check Record DB",
+      "alwaysOutputData": true,
+      "credentials": {
+        "notionApi": {
+          "id": "zoKalUABLF0XX80k",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "record-not-found",
+              "leftValue": "={{ $json.id || \"\" }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        560,
+        32
+      ],
+      "id": "b17fdd2c-7e92-4047-950d-40a3c14e094a",
+      "name": "IF Record Missing"
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Feed URL List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Feed URL List": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "RSS Read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RSS Read": {
+      "main": [
+        [
+          {
+            "node": "Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit": {
+      "main": [
+        [
+          {
+            "node": "Build Local Proxy URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Local Proxy URL": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items2": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Check Record DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Record DB": {
+      "main": [
+        [
+          {
+            "node": "IF Record Missing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Record Missing": {
+      "main": [
+        [
+          {
+            "node": "Check Content DB",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Over Items2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Content DB": {
+      "main": [
+        [
+          {
+            "node": "IF Content Missing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Content Missing": {
+      "main": [
+        [
+          {
+            "node": "Fetch Reddit Via Local Proxy",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Over Items2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Reddit Via Local Proxy": {
+      "main": [
+        [
+          {
+            "node": "Format Reddit Post And Comments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Reddit Post And Comments": {
+      "main": [
+        [
+          {
+            "node": "AI 判断 + 格式化1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DeepSeek Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI 判断 + 格式化1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI 判断 + 格式化1": {
+      "main": [
+        [
+          {
+            "node": "存处理记录",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Filter 筛选相关内容1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "存处理记录": {
+      "main": [
+        []
+      ]
+    },
+    "Filter 筛选相关内容1": {
+      "main": [
+        [
+          {
+            "node": "存入notion内容库",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Over Items2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "存入notion内容库": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "staticData": {
+    "node:Schedule Trigger": {
+      "recurrenceRules": []
+    }
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "versionId": "6e7ea8a7-0e0f-46f9-a061-960b5a6fb23b",
+  "activeVersionId": null,
+  "versionCounter": 433,
+  "triggerCount": 1
+}
