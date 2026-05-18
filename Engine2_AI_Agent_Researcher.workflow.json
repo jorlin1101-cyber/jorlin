@@ -1,0 +1,554 @@
+{
+  "id": "engine2_ai_researcher",
+  "name": "Engine 2 - AI Agent Researcher",
+  "description": "Engine 2: AI Agent researches Notion pain points with Tavily and writes structured results back to the inbound travel content database.",
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1040,
+        0
+      ],
+      "id": "42048272-f53d-411b-b1af-000f5959d671",
+      "name": "Manual Trigger"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "databaseId": {
+          "__rl": true,
+          "value": "YOUR_NOTION_CONTENT_DATABASE_ID",
+          "mode": "list",
+          "cachedResultName": "YOUR_CONTENT_DATABASE_NAME",
+          "cachedResultUrl": "https://www.notion.so/YOUR_NOTION_CONTENT_DATABASE_ID"
+        },
+        "limit": 10,
+        "filterType": "json",
+        "filterJson": "={\n  \"and\": [\n    {\n      \"or\": [\n        { \"property\": \"status\", \"select\": { \"equals\": \"📥 To Research\" } },\n        { \"property\": \"status\", \"select\": { \"equals\": \"待寻找解决方案\" } },\n        { \"property\": \"status\", \"select\": { \"is_empty\": true } }\n      ]\n    },\n    {\n      \"property\": \"pain_point_summary \",\n      \"rich_text\": { \"is_not_empty\": true }\n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        -800,
+        0
+      ],
+      "id": "d016dc1a-b96e-4f83-9a5f-d2a4515f1452",
+      "name": "Get To Research Items",
+      "credentials": {
+        "notionApi": {
+          "id": "YOUR_NOTION_CREDENTIAL_ID",
+          "name": "YOUR_NOTION_CREDENTIAL_NAME"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "maxItems": 5
+      },
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        -560,
+        0
+      ],
+      "id": "4d13d65f-638d-4fad-ac21-fb633c537815",
+      "name": "Limit Research Count"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -320,
+        0
+      ],
+      "id": "c9f4df0e-cdc3-4dce-83d9-09585860db4a",
+      "name": "Loop Each Pain Point",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n 的 Code 节点里，items 代表传进来的所有数据\n// 因为 Loop Over Items 的 Batch Size = 1，所以通常这里一次只有 1 条 item\nreturn items.map(item => {\n  // item.json 就是当前这条数据的具体内容\n  const j = item.json;\n\n  // 这个函数的作用：\n  // 把任何类型的值都转换成字符串\n  // 因为 Notion 里面有些字段可能是空值、数组、对象\n  // 后面 AI Prompt 需要的是普通文字，所以要统一转成字符串\n  function toStr(value) {\n    if (value === undefined || value === null) return \"\";\n    if (Array.isArray(value)) return value.join(\"\\n\");\n    if (typeof value === \"object\") return JSON.stringify(value);\n    return String(value).trim();\n  }\n\n  // 这个函数的作用：\n  // 从多个可能的字段名里，找到第一个有内容的字段\n  //\n  // 例如你的字段可能叫：\n  // Pain Point Summary\n  // pain_point_summary\n  // 痛点总结\n  //\n  // 它会按顺序找，只要找到有内容的，就返回这个内容\n  function pick(keys) {\n    for (const key of keys) {\n      const value = j[key];\n      const str = toStr(value);\n      if (str) return str;\n    }\n    return \"\";\n  }\n\n  // 获取 Notion 页面 ID\n  // 后面的 Notion Update 要靠这个 ID 知道“更新哪一页”\n  const notionPageId = j.id || j.page_id || j.notion_page_id || \"\";\n\n  // 获取痛点总结\n  const painPoint = pick([\n    \"property_pain_point_summary\",\n    \"Pain Point Summary\",\n    \"pain_point_summary\",\n    \"痛点总结\",\n    \"痛点\",\n    \"Pain Point\"\n  ]);\n\n  // 获取 Hook 标题\n  const hook = pick([\n    \"property_hook\",\n    \"property_name\",\n    \"Hook\",\n    \"hook\",\n    \"爆款HOOK标题\",\n    \"爆款 Hook\",\n    \"Name\",\n    \"Title\"\n  ]);\n\n  // 获取分类\n  const category = pick([\n    \"property_category\",\n    \"Category\",\n    \"category\",\n    \"分类\"\n  ]);\n\n  // 获取情绪\n  const emotion = pick([\n    \"property_emotion\",\n    \"Emotion\",\n    \"emotion\",\n    \"情绪\"\n  ]);\n\n  // 获取 Reddit 原帖标题\n  const originalTitle = pick([\n    \"property_original_title\",\n    \"property_name\",\n    \"Original Title\",\n    \"original_title\",\n    \"Reddit Title\",\n    \"原帖标题\",\n    \"Title\",\n    \"Name\"\n  ]);\n\n  // 获取 Reddit 原帖正文\n  const originalText = pick([\n    \"property_original_text\",\n    \"property_evidence\",\n    \"Original Text\",\n    \"original_text\",\n    \"Reddit Text\",\n    \"原帖正文\",\n    \"正文\",\n    \"Content\"\n  ]);\n\n  // 获取原帖链接\n  const sourceUrl = pick([\n    \"property_source_url\",\n    \"Source URL\",\n    \"source_url\",\n    \"URL\",\n    \"link\",\n    \"原帖链接\"\n  ]);\n\n  // 把几个重要字段合并到一起\n  // 后面用来识别这条内容可能涉及哪个城市或主题\n  const combinedText = [\n    painPoint,\n    hook,\n    category,\n    originalTitle,\n    originalText\n  ].join(\" \");\n\n  // 识别是否提到了中国具体城市或区域\n  // 这个不是为了限制账号方向，而是为了让搜索更精准\n  //\n  // 例如：\n  // 如果原帖提到 Shanghai，就搜索上海相关解决方案\n  // 如果提到 Beijing，就搜索北京相关解决方案\n  // 如果没有具体城市，就搜索中国通用解决方案\n  const cityKeywords = [\n    \"Beijing\", \"北京\",\n    \"Shanghai\", \"上海\",\n    \"Guangzhou\", \"广州\",\n    \"Shenzhen\", \"深圳\",\n    \"Chengdu\", \"成都\",\n    \"Chongqing\", \"重庆\",\n    \"Xi'an\", \"Xian\", \"西安\",\n    \"Hangzhou\", \"杭州\",\n    \"Suzhou\", \"苏州\",\n    \"Nanjing\", \"南京\",\n    \"Guilin\", \"桂林\",\n    \"Zhangjiajie\", \"张家界\",\n    \"Yunnan\", \"云南\",\n    \"Dali\", \"大理\",\n    \"Lijiang\", \"丽江\",\n    \"Kunming\", \"昆明\",\n    \"Tibet\", \"西藏\",\n    \"Xinjiang\", \"新疆\",\n    \"Sichuan\", \"四川\",\n    \"Gansu\", \"甘肃\",\n    \"Qinghai\", \"青海\",\n    \"Harbin\", \"哈尔滨\",\n    \"Hainan\", \"海南\",\n    \"Sanya\", \"三亚\",\n    \"Hong Kong\", \"香港\",\n    \"Macau\", \"澳门\"\n  ];\n\n  // 从 combinedText 里找出出现过的城市/区域关键词\n  const matchedCities = cityKeywords.filter(city => {\n    return combinedText.toLowerCase().includes(city.toLowerCase());\n  });\n\n  // 去重，避免同一个城市重复出现\n  const uniqueCities = [...new Set(matchedCities)];\n\n  // 判断内容主题\n  // 这里不是严格分类，只是为了辅助生成更好的 research query\n  const isPaymentRelated = /alipay|wechat pay|payment|pay|card|visa card|mastercard|支付宝|微信支付|支付|银行卡|信用卡/i.test(combinedText);\n\n  const isTransportRelated = /train|railway|high speed rail|metro|subway|taxi|didi|airport|transport|bus|交通|高铁|火车|地铁|机场|打车|滴滴|巴士/i.test(combinedText);\n\n  const isVisaRelated = /visa|entry|144|240|transit|passport|immigration|免签|签证|入境|过境|护照/i.test(combinedText);\n\n  const isFoodRelated = /food|restaurant|spicy|vegetarian|halal|menu|eat|hotpot|美食|餐厅|吃|火锅|不辣|素食|清真/i.test(combinedText);\n\n  const isAppRelated = /app|vpn|esim|sim|map|translate|wechat|alipay|didi|ctrip|trip.com|应用|软件|地图|翻译|电话卡/i.test(combinedText);\n\n  const isCultureExperienceRelated = /culture|temple|museum|tea|kung fu|opera|tcm|massage|calligraphy|文化|寺庙|博物馆|茶|功夫|戏曲|中医|推拿|书法/i.test(combinedText);\n\n  // 根据识别到的主题，生成搜索方向\n  const topicHints = [];\n\n  if (isPaymentRelated) {\n    topicHints.push(\"mobile payment setup for foreign visitors in China\");\n  }\n\n  if (isTransportRelated) {\n    topicHints.push(\"China transportation tips for foreign tourists\");\n  }\n\n  if (isVisaRelated) {\n    topicHints.push(\"China visa-free transit and entry rules for foreign travelers\");\n  }\n\n  if (isFoodRelated) {\n    topicHints.push(\"China food ordering and restaurant tips for foreign tourists\");\n  }\n\n  if (isAppRelated) {\n    topicHints.push(\"essential apps for traveling in China as a foreigner\");\n  }\n\n  if (isCultureExperienceRelated) {\n    topicHints.push(\"authentic Chinese cultural experiences for foreign visitors\");\n  }\n\n  // 如果没有识别出具体主题，就使用通用入境游方向\n  if (topicHints.length === 0) {\n    topicHints.push(\"China inbound travel practical tips for foreign visitors\");\n  }\n\n  // 如果原文提到城市，就把城市加入搜索词\n  // 如果没有提到城市，就保持中国通用方向\n  const locationHint = uniqueCities.length > 0\n    ? uniqueCities.join(\" \")\n    : \"China\";\n\n  // 最终生成 research query\n  //\n  // 这个 query 会给 AI Agent 作为“搜索建议”\n  // Agent 仍然可以根据任务自己调整搜索词\n  const researchQuery = [\n    painPoint,\n    category,\n    locationHint,\n    topicHints.join(\" \"),\n    \"foreign tourists\",\n    \"practical solution\",\n    \"official source or recent reliable guide\",\n    \"latest information\"\n  ]\n    .filter(Boolean)\n    .join(\" \");\n\n  // 返回整理后的数据\n  return {\n    json: {\n      // 保留 Notion 原始输出\n      ...j,\n\n      // Notion 页面 ID\n      notion_page_id: notionPageId,\n\n      // 标准化后的痛点总结\n      pain_point_summary_clean: painPoint.slice(0, 2000),\n\n      // 标准化后的 Hook\n      hook_clean: hook,\n\n      // 标准化后的分类\n      category_clean: category,\n\n      // 标准化后的情绪\n      emotion_clean: emotion,\n\n      // 标准化后的 Reddit 标题\n      original_title_clean: originalTitle,\n\n      // 标准化后的 Reddit 正文\n      original_text_clean: originalText.slice(0, 5000),\n\n      // 标准化后的原帖链接\n      source_url_clean: sourceUrl,\n\n      // 是否识别到了具体城市/区域\n      matched_locations: uniqueCities.join(\", \"),\n\n      // 识别出来的主题方向\n      topic_hints: topicHints.join(\"; \"),\n\n      // 给 AI Agent 的搜索建议\n      research_query: researchQuery\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -80,
+        80
+      ],
+      "id": "e6f0b52f-c763-4fb1-b324-6f0e8850f553",
+      "name": "Normalize Engine1 Notion Item"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "75eef4fd-fea9-427a-ab88-17ec62fee112",
+              "leftValue": "={{ $json.pain_point_summary_clean }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        160,
+        80
+      ],
+      "id": "6f82480f-9d0c-4c50-8e31-1cee42045441",
+      "name": "Has Pain Point"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "update",
+        "pageId": {
+          "__rl": true,
+          "value": "={{ $json.notion_page_id }}",
+          "mode": "id"
+        },
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "status|select",
+              "selectValue": "🔍 Researching"
+            },
+            {
+              "key": "research_query|rich_text",
+              "textContent": "={{ $json.research_query }}"
+            },
+            {
+              "key": "error_message|rich_text"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        400,
+        80
+      ],
+      "id": "d66f8065-c19e-4dc1-a9fd-2228dd6df465",
+      "name": "Update Status Researching",
+      "credentials": {
+        "notionApi": {
+          "id": "YOUR_NOTION_CREDENTIAL_ID",
+          "name": "YOUR_NOTION_CREDENTIAL_NAME"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "agent": "reActAgent",
+        "promptType": "define",
+        "text": "=You are the Research Agent for U Travel, an inbound China travel content system.\n\nU Travel helps foreign travelers understand and experience China like locals, especially Chengdu and Sichuan.\n\nYour job:\nResearch the travel pain point below, use the Tavily search tool when needed, and produce a practical, source-grounded solution that can later be turned into social media content.\n\nImportant rules:\n1. You must use Tavily search before giving the final answer.\n2. Prefer official sources when possible, such as government, airport, railway, attraction, map, payment platform, airline, or official tourism websites.\n3. If official sources are not available, use recent high-quality travel guides, forums, or firsthand traveler reports.\n4. Do not invent links.\n5. Do not invent prices, policies, opening hours, visa rules, railway rules, or payment rules.\n6. If the sources are weak or incomplete, set research_status to \"needs_manual_check\".\n7. If the answer is useful but not fully official, use confidence \"medium\".\n8. Use confidence \"high\" only when the answer is supported by strong or official sources.\n9. Add a Chengdu or Sichuan local angle when relevant.\n10. Avoid sales language.\n11. Do not say \"book a tour\", \"DM me\", \"contact me\", \"I offer tours\", or \"I can guide you\".\n12. The final answer must be useful for foreign travelers even if they never buy anything.\n13. Output only valid JSON.\n14. No Markdown.\n15. No code block.\n\nTraveler pain point:\n{{ $('Normalize Engine1 Notion Item').item.json.pain_point_summary_clean }}\n\nHook from Engine 1:\n{{ $('Normalize Engine1 Notion Item').item.json.hook_clean }}\n\nCategory:\n{{ $('Normalize Engine1 Notion Item').item.json.category_clean }}\n\nEmotion:\n{{ $('Normalize Engine1 Notion Item').item.json.emotion_clean }}\n\nOriginal Reddit title:\n{{ $('Normalize Engine1 Notion Item').item.json.original_title_clean }}\n\nOriginal Reddit text:\n{{ $('Normalize Engine1 Notion Item').item.json.original_text_clean }}\n\nOriginal source URL:\n{{ $('Normalize Engine1 Notion Item').item.json.source_url_clean }}\n\nSuggested search query:\n{{ $('Normalize Engine1 Notion Item').item.json.research_query }}\n\nPlease return the final answer in the required JSON structure.",
+        "hasOutputParser": true,
+        "options": {
+          "maxIterations": 5
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.9,
+      "position": [
+        688,
+        80
+      ],
+      "id": "960708d0-e56c-4c59-b866-c7ebb9f7df64",
+      "name": "Research AI Agent"
+    },
+    {
+      "parameters": {
+        "options": {
+          "maxTokens": 2500,
+          "temperature": 0.2,
+          "timeout": 360000,
+          "maxRetries": 2
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatDeepSeek",
+      "typeVersion": 1,
+      "position": [
+        560,
+        320
+      ],
+      "id": "378c7d4b-8f2a-4213-adb5-91e2a8fd0d1a",
+      "name": "DeepSeek Chat Model",
+      "credentials": {
+        "deepSeekApi": {
+          "id": "YOUR_DEEPSEEK_CREDENTIAL_ID",
+          "name": "YOUR_DEEPSEEK_CREDENTIAL_NAME"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Search the web with Tavily for current, source-grounded information about inbound China travel pain points. Use official and reliable sources where possible.",
+        "method": "POST",
+        "url": "https://api.tavily.com/search",
+        "sendHeaders": true,
+        "parametersHeaders": {
+          "values": [
+            {
+              "name": "Authorization",
+              "valueProvider": "fieldValue",
+              "value": "Bearer {{ $env.TAVILY_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "valueProvider": "fieldValue",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"query\": \"{query}\",\n  \"search_depth\": \"basic\",\n  \"topic\": \"general\",\n  \"max_results\": 5,\n  \"include_answer\": true,\n  \"include_raw_content\": false,\n  \"include_images\": false\n}",
+        "placeholderDefinitions": {
+          "values": [
+            {
+              "name": "query",
+              "description": "Search query for researching the travel pain point. Use English. Include China travel, foreign tourists, official source, and Chengdu/Sichuan terms when relevant.",
+              "type": "string"
+            }
+          ]
+        },
+        "optimizeResponse": true,
+        "fieldsToInclude": "selected",
+        "fields": "answer,results.title,results.url,results.content,results.score"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        768,
+        320
+      ],
+      "id": "0fa08f02-cc6f-46c0-9073-2bca008ed0c8",
+      "name": "Tavily Search Tool"
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"additionalProperties\": false,\n  \"properties\": {\n    \"research_status\": {\"type\": \"string\", \"enum\": [\"solved\", \"needs_manual_check\"]},\n    \"confidence\": {\"type\": \"string\", \"enum\": [\"high\", \"medium\", \"low\"]},\n    \"solution_summary\": {\"type\": \"string\"},\n    \"step_by_step_solution\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}, \"minItems\": 3, \"maxItems\": 8},\n    \"common_mistakes\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}, \"minItems\": 1, \"maxItems\": 5},\n    \"local_chengdu_angle\": {\"type\": \"string\"},\n    \"source_links\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"additionalProperties\": false,\n        \"properties\": {\n          \"title\": {\"type\": \"string\"},\n          \"url\": {\"type\": \"string\"},\n          \"why_useful\": {\"type\": \"string\"},\n          \"source_type\": {\"type\": \"string\", \"enum\": [\"official\", \"travel_guide\", \"forum\", \"map\", \"news\", \"other\"]}\n        },\n        \"required\": [\"title\", \"url\", \"why_useful\", \"source_type\"]\n      },\n      \"minItems\": 1,\n      \"maxItems\": 5\n    },\n    \"missing_info\": {\"type\": \"string\"},\n    \"draft_angle\": {\"type\": \"string\"},\n    \"image_brief\": {\"type\": \"string\"},\n    \"claim_check_notes\": {\"type\": \"string\"}\n  },\n  \"required\": [\"research_status\", \"confidence\", \"solution_summary\", \"step_by_step_solution\", \"common_mistakes\", \"local_chengdu_angle\", \"source_links\", \"missing_info\", \"draft_angle\", \"image_brief\", \"claim_check_notes\"]\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        992,
+        320
+      ],
+      "id": "c1133ed3-6ba5-4f49-9ca7-014ab254e941",
+      "name": "Parse Agent Research JSON"
+    },
+    {
+      "parameters": {
+        "jsCode": "const base = $('Normalize Engine1 Notion Item').item.json;\nlet ai = $input.first().json;\n\nfunction cleanJsonString(str) {\n  return String(str)\n    .replace(/^```json/i, \"\")\n    .replace(/^```/i, \"\")\n    .replace(/```$/i, \"\")\n    .trim();\n}\n\nif (ai.output) {\n  if (typeof ai.output === \"string\") {\n    try {\n      ai = JSON.parse(cleanJsonString(ai.output));\n    } catch (error) {\n      ai = {\n        research_status: \"needs_manual_check\",\n        confidence: \"low\",\n        solution_summary: \"\",\n        step_by_step_solution: [],\n        common_mistakes: [],\n        local_chengdu_angle: \"\",\n        source_links: [],\n        missing_info: \"AI Agent output could not be parsed as JSON.\",\n        draft_angle: \"\",\n        image_brief: \"\",\n        claim_check_notes: String(error.message || error)\n      };\n    }\n  } else if (typeof ai.output === \"object\") {\n    ai = ai.output;\n  }\n}\n\nconst stepByStep = Array.isArray(ai.step_by_step_solution) ? ai.step_by_step_solution : [];\nconst mistakes = Array.isArray(ai.common_mistakes) ? ai.common_mistakes : [];\nconst links = Array.isArray(ai.source_links) ? ai.source_links : [];\n\nconst sourceLinksText = links.map((s, index) => {\n  return [\n    `${index + 1}. ${s.title || \"Untitled source\"}`,\n    `URL: ${s.url || \"\"}`,\n    `Type: ${s.source_type || \"other\"}`,\n    `Why useful: ${s.why_useful || \"\"}`\n  ].join(\"\\n\");\n}).join(\"\\n\\n\");\n\nconst finalStatus =\n  ai.research_status === \"solved\" && ai.confidence !== \"low\"\n    ? \"📝 To Draft\"\n    : \"🧐 Needs Manual Check\";\n\nreturn [\n  {\n    json: {\n      ...base,\n      ...ai,\n      step_by_step_solution_text: stepByStep.map((s, i) => `${i + 1}. ${s}`).join(\"\\n\"),\n      common_mistakes_text: mistakes.map((s, i) => `${i + 1}. ${s}`).join(\"\\n\"),\n      source_links_text: sourceLinksText,\n      final_status: finalStatus\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        80
+      ],
+      "id": "e95db117-ea0d-434c-8b09-d7fd5136fbd8",
+      "name": "Normalize Agent Research Output"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "update",
+        "pageId": {
+          "__rl": true,
+          "value": "={{ $json.notion_page_id }}",
+          "mode": "id"
+        },
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "status|select",
+              "selectValue": "={{ $json.final_status }}"
+            },
+            {
+              "key": "research_query|rich_text",
+              "textContent": "={{ $json.research_query }}"
+            },
+            {
+              "key": "solution_summary|rich_text",
+              "textContent": "={{ $json.solution_summary }}"
+            },
+            {
+              "key": "step_by_step_solution|rich_text",
+              "textContent": "={{ $json.step_by_step_solution_text }}"
+            },
+            {
+              "key": "common_mistakes|rich_text",
+              "textContent": "={{ $json.common_mistakes_text }}"
+            },
+            {
+              "key": "source_links|rich_text",
+              "textContent": "={{ $json.source_links_text }}"
+            },
+            {
+              "key": "local_chengdu_angle|rich_text",
+              "textContent": "={{ $json.local_chengdu_angle }}"
+            },
+            {
+              "key": "draft_angle|rich_text",
+              "textContent": "={{ $json.draft_angle }}"
+            },
+            {
+              "key": "image_brief|rich_text",
+              "textContent": "={{ $json.image_brief }}"
+            },
+            {
+              "key": "confidence|select",
+              "selectValue": "={{ $json.confidence }}"
+            },
+            {
+              "key": "missing_info|rich_text",
+              "textContent": "={{ $json.missing_info }}"
+            },
+            {
+              "key": "claim_check_notes|rich_text",
+              "textContent": "={{ $json.claim_check_notes }}"
+            },
+            {
+              "key": "engine_2_time|date",
+              "date": "={{ $now }}"
+            },
+            {
+              "key": "error_message|rich_text"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        1200,
+        80
+      ],
+      "id": "2d765ba8-45ec-4544-b346-f923a4d8a393",
+      "name": "Update Research Result",
+      "credentials": {
+        "notionApi": {
+          "id": "YOUR_NOTION_CREDENTIAL_ID",
+          "name": "YOUR_NOTION_CREDENTIAL_NAME"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 2
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1440,
+        80
+      ],
+      "id": "145ba0b5-8329-4de5-a124-92298c93c1e4",
+      "name": "Wait Before Next Item",
+      "webhookId": "cbef3762-cac7-4701-a518-55ef767be109"
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get To Research Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get To Research Items": {
+      "main": [
+        [
+          {
+            "node": "Limit Research Count",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit Research Count": {
+      "main": [
+        [
+          {
+            "node": "Loop Each Pain Point",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Each Pain Point": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Normalize Engine1 Notion Item",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Engine1 Notion Item": {
+      "main": [
+        [
+          {
+            "node": "Has Pain Point",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Pain Point": {
+      "main": [
+        [
+          {
+            "node": "Update Status Researching",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Each Pain Point",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Status Researching": {
+      "main": [
+        [
+          {
+            "node": "Research AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Research AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Normalize Agent Research Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DeepSeek Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Research AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tavily Search Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "Research AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Agent Research JSON": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Research AI Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Agent Research Output": {
+      "main": [
+        [
+          {
+            "node": "Update Research Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Research Result": {
+      "main": [
+        [
+          {
+            "node": "Wait Before Next Item",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait Before Next Item": {
+      "main": [
+        [
+          {
+            "node": "Loop Each Pain Point",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "staticData": null,
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "versionCounter": 9,
+  "triggerCount": 0
+}
